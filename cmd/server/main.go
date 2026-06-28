@@ -7,9 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/sehogas/socios3/internal/database"
-	"github.com/sehogas/socios3/internal/server"
+	"github.com/sehogas/socios/internal/database"
+	"github.com/sehogas/socios/internal/server"
 )
+
+// Version se establece en tiempo de compilación con -ldflags "-X main.Version=..."
+var Version = "dev"
 
 func main() {
 	// Obtener puerto y ruta de base de datos desde variables de entorno o usar defaults
@@ -42,7 +45,7 @@ func main() {
 	log.Println("Migraciones ejecutadas / base de datos lista.")
 
 	// 3. Configurar ruteo e iniciar servidor HTTP
-	srvHandler := server.NewServer(db)
+	srvHandler := server.NewServer(db, Version)
 	
 	server := &http.Server{
 		Addr:         ":" + port,

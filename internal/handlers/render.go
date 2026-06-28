@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sehogas/socios3/db/sqlc"
-	"github.com/sehogas/socios3/internal/middleware"
-	"github.com/sehogas/socios3/web"
+	"github.com/sehogas/socios/db/sqlc"
+	"github.com/sehogas/socios/internal/middleware"
+	"github.com/sehogas/socios/web"
 )
 
 var argLocation *time.Location

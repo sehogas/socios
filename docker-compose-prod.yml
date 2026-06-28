@@ -1,0 +1,20 @@
+services:
+  web:
+    image: ghcr.io/sehogas/socios:latest
+    container_name: socios-web-prod
+    ports:
+      - "80:8080"
+    volumes:
+      - socios_data:/app/data
+      - socios_backups:/app/backups
+    environment:
+      - PORT=8080
+      - DATABASE_PATH=/app/data/database.db
+      - ENV=production
+    restart: always
+
+volumes:
+  socios_data:
+    driver: local
+  socios_backups:
+    driver: local

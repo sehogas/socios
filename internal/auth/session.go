@@ -21,7 +21,7 @@ type Session struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-const CookieName = "socios3_session"
+const CookieName = "socios_session"
 
 var secretKey []byte
 

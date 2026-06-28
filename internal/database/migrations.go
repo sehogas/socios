@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/sehogas/socios3/db"
+	"github.com/sehogas/socios/db"
 )
 
 // RunMigrations lee el esquema SQL embebido expuesto por el paquete db y lo ejecuta

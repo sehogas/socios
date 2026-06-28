@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sehogas/socios3/db/sqlc"
-	"github.com/sehogas/socios3/internal/middleware"
+	"github.com/sehogas/socios/db/sqlc"
+	"github.com/sehogas/socios/internal/middleware"
 )
 
 type CMSHandler struct {

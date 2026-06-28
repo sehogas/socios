@@ -1,6 +1,6 @@
-# Socios3 - Sistema de Socios y Gestión Contable
+# Socios - Sistema de Socios y Gestión Contable
 
-Socios3 es una plataforma monolítica diseñada específicamente para la administración de fichas de socios, cuentas corrientes individuales, tesorería general (caja), un mini-CMS de contenidos y copias de seguridad consistentes en caliente.
+Socios es una plataforma monolítica diseñada específicamente para la administración de fichas de socios, cuentas corrientes individuales, tesorería general (caja), un mini-CMS de contenidos y copias de seguridad consistentes en caliente.
 
 El sistema fue concebido para digitalizar el flujo de inscripción física (basado en la planilla del Centro de Residentes Formoseños en Tierra del Fuego), automatizar la generación y cobro de cuotas mensuales, y facilitar un balance de ingresos y egresos a través de un dashboard.
 
@@ -22,7 +22,7 @@ El sistema fue concebido para digitalizar el flujo de inscripción física (basa
 El código sigue una estructura limpia y desacoplada típica en el ecosistema Go:
 
 ```text
-socios3/
+socios/
 ├── cmd/
 │   └── server/
 │       └── main.go           # Punto de entrada. Inicializa DB, ejecuta migraciones y levanta el servidor HTTP.
@@ -96,7 +96,7 @@ El sistema divide los movimientos en dos universos que se comunican:
 ## 4. Diseño de Seguridad
 
 *   **Contraseñas:** Encriptadas en base de datos usando **bcrypt** con costo por defecto.
-*   **Sesiones (Client-Side Encrypted Cookies):** En lugar de persistir sesiones en la base de datos y realizar lecturas por cada recurso solicitado, Socios3 cifra la estructura de sesión en formato JSON utilizando **AES-GCM (criptografía autenticada)**.
+*   **Sesiones (Client-Side Encrypted Cookies):** En lugar de persistir sesiones en la base de datos y realizar lecturas por cada recurso solicitado, Socios cifra la estructura de sesión en formato JSON utilizando **AES-GCM (criptografía autenticada)**.
     *   La clave de cifrado de 32 bytes se genera de forma aleatoria en el arranque del servidor y se guarda localmente en el archivo `.session_key`. Esto permite mantener las sesiones activas de los usuarios incluso si el servidor se reinicia.
     *   Las cookies se configuran como `HTTP-Only`, `SameSite=Lax` y con banderas de seguridad correspondientes.
 *   **Middleware de Socio Activo:** Al intentar acceder a secciones restringidas de socios, el middleware valida que la cuenta del socio vinculada al email tenga la propiedad `activo = 1` y `estado = 'Aprobado'`. Si la administración inhabilita a un socio (por morosidad u otra causa), su acceso web a contenido restringido se bloquea de forma inmediata.
@@ -127,8 +127,8 @@ El servidor escuchará por defecto en `http://localhost:8080`.
 
 ### Modificaciones en Base de Datos (Flujo de Trabajo con sqlc)
 Si deseas agregar columnas o nuevas tablas:
-1.  Modifica el archivo DDL de base de datos en [db/schema.sql](file:///home/shogas/go/src/github.com/sehogas/socios3/db/schema.sql).
-2.  Escribe las consultas correspondientes en [db/query.sql](file:///home/shogas/go/src/github.com/sehogas/socios3/db/query.sql) utilizando las anotaciones de sqlc.
+1.  Modifica el archivo DDL de base de datos en [db/schema.sql](file:///home/shogas/go/src/github.com/sehogas/socios/db/schema.sql).
+2.  Escribe las consultas correspondientes en [db/query.sql](file:///home/shogas/go/src/github.com/sehogas/socios/db/query.sql) utilizando las anotaciones de sqlc.
 3.  Regenera el código Go corriendo el compilador de sqlc en la raíz del proyecto:
     ```bash
     sqlc generate
@@ -137,28 +137,74 @@ Si deseas agregar columnas o nuevas tablas:
 
 ---
 
-## 6. Mantenimiento del Sistema en Producción
+## 6. Despliegue y Ciclo de Vida
 
-### Ejecución en Docker
-Para entornos de producción, se recomienda ejecutar el sistema encapsulado. La persistencia de la base de datos SQLite y las copias de seguridad se garantizan mapeando volúmenes locales del host al contenedor.
+El proyecto incluye configuraciones listas para usar tanto en desarrollo como en producción mediante Docker y Docker Compose, además de entrega continua (CD) mediante GitHub Actions.
 
-1.  **Construir la imagen:**
-    ```bash
-    docker build -t socios3 .
+### A. Despliegue con Docker Compose
+
+#### Desarrollo
+Para arrancar el entorno de desarrollo local con Docker Compose (construyendo la imagen localmente y usando volúmenes de host para fácil depuración):
+```bash
+docker-compose up -d --build
+```
+*   El servidor estará disponible en `http://localhost:8080`.
+*   La base de datos SQLite se mantendrá persistente en el directorio `./data/` de tu máquina.
+*   Las copias de seguridad de la base de datos se guardarán localmente en `./backups/`.
+
+#### Producción
+Para desplegar en producción utilizando la imagen empaquetada oficial en GitHub Packages (GHCR) y volúmenes lógicos con nombre administrados por Docker (práctica recomendada):
+```bash
+docker-compose -f docker-compose-prod.yml up -d
+```
+*   El servidor estará expuesto en el puerto estándar `80` del host (mapeado al puerto interno `8080`).
+*   La persistencia de datos y las copias de seguridad se almacenan en los volúmenes aislados `socios_data` y `socios_backups`.
+
+---
+
+### B. Endpoint de Salud y Versión
+
+El servidor expone un endpoint público para verificar el estado del servicio y la versión del binario en ejecución:
+
+*   **Ruta:** `GET /health`
+*   **Respuesta Exitosa (HTTP 200):**
+    ```json
+    {
+      "status": "ok",
+      "version": "v1.0.0"
+    }
     ```
-2.  **Lanzar el contenedor persistiendo datos:**
-    ```bash
-    docker run -d \
-      -p 8080:8080 \
-      -v $(pwd)/data:/app/data \
-      -v $(pwd)/backups:/app/backups \
-      --name club_socios \
-      socios3
+*   **Respuesta de Error (HTTP 500):** Se emite en caso de que la base de datos no sea accesible:
+    ```json
+    {
+      "status": "error",
+      "version": "v1.0.0"
+    }
     ```
-    *   La base de datos SQLite se creará y mantendrá en `./data/database.db` en tu máquina host.
-    *   Las copias de seguridad del administrador se guardarán físicamente en la carpeta `./backups/` del host.
 
-### Copias de Seguridad (Backups)
+---
+
+### C. Automatización y CI/CD en GitHub (GitHub Actions)
+
+El proyecto cuenta con un workflow configurado en [.github/workflows/release.yml](file:///.github/workflows/release.yml) para automatizar la publicación de nuevas versiones y el empaquetado multiplataforma.
+
+#### Flujo de Publicación:
+1. Crea un nuevo tag o etiqueta de versión que comience con la letra `v` (por ejemplo, `v1.0.0`):
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+2. El workflow de GitHub Actions se activará de forma automática ejecutando:
+   *   **Compilación Cruzada de Binarios Estáticos**: Compila binarios independientes sin CGO para las siguientes arquitecturas:
+       *   **Linux** (AMD64 y ARM64)
+       *   **Windows** (AMD64 y ARM64)
+       *   **macOS / Mac** (AMD64 y ARM64)
+   *   **Construcción e inyección en Docker**: Compila y publica la imagen oficial en el registro de GitHub Packages (GHCR) (`ghcr.io/sehogas/socios:latest` y `ghcr.io/sehogas/socios:v1.0.0`) inyectando el número de la versión dentro de la imagen.
+   *   **GitHub Release**: Crea una publicación de versión en la sección "Releases" de GitHub cargando los 6 binarios multiplataforma listos para su descarga.
+
+---
+
+### D. Copias de Seguridad (Backups)
 *   **Generación:** En el panel de control del administrador, al pulsar "Generar Backup", el sistema ejecuta un respaldo en caliente. Este archivo se escribe físicamente en `/app/backups/backup_YYYYMMDD_HHMMSS.db`.
 *   **Descarga:** Al generarse, el navegador web iniciará automáticamente la descarga del archivo `.db` en tu computadora.
 *   **Restauración:** Para restaurar el sistema a un punto anterior:
@@ -166,8 +212,18 @@ Para entornos de producción, se recomienda ejecutar el sistema encapsulado. La 
     2.  Reemplaza el archivo activo `database.db` (ubicado en tu volumen `data/`) con una copia del backup renombrada a `database.db`.
     3.  Vuelve a iniciar el servidor.
 
-### Variables de Entorno de Configuración
+### E. Variables de Entorno de Configuración
+
 Puedes modificar el comportamiento inicial del binario o del contenedor utilizando las siguientes variables de entorno:
-*   `PORT`: Puerto HTTP donde escuchará la aplicación (Por defecto: `8080`).
-*   `DATABASE_PATH`: Ruta absoluta o relativa al archivo de base de datos SQLite (Por defecto: `./database.db`).
-*   `SESSION_SECRET`: Clave de encriptación manual para cookies. Si no se provee, el servidor genera una clave aleatoria persistida en un archivo `.session_key` en el directorio de trabajo.
+
+| Variable | Descripción | Valor por Defecto |
+| --- | --- | --- |
+| `PORT` | Puerto HTTP donde escuchará la aplicación. | `8080` |
+| `DATABASE_PATH` | Ruta al archivo de base de datos SQLite (ej. `./database.db` o `/app/data/database.db` en Docker). | `./database.db` |
+| `ENV` | Perfil del entorno: `development` (desarrollo) o `production` (producción). | `development` |
+| `SESSION_SECRET` | Clave de cifrado de 32 bytes para las cookies de sesión (AES-GCM). En caso de no proveerse, se genera una clave aleatoria en el arranque guardada en el archivo local `.session_key`. Se recomienda configurar una clave fija en producción. | *(Autogenerada)* |
+| `SMTP_HOST` | Host o dirección del servidor SMTP para el envío de correos. Si se deja en blanco, el envío de correos se simulará en la consola del servidor (modo desarrollo). | *(Vacío / Simulado)* |
+| `SMTP_PORT` | Puerto del servidor de correo SMTP. | `587` |
+| `SMTP_USER` | Usuario de autenticación para el servidor SMTP. | *(Vacío)* |
+| `SMTP_PASS` | Contraseña de autenticación para el servidor SMTP. | *(Vacío)* |
+| `SMTP_FROM` | Dirección de correo del remitente para las notificaciones enviadas. | `no-reply@tu-club.com` |

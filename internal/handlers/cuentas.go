@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sehogas/socios3/db/sqlc"
+	"github.com/sehogas/socios/db/sqlc"
 )
 
 type CuentasHandler struct {

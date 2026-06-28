@@ -1,4 +1,4 @@
-// Funciones de utilidad general para el frontend de Socios3
+// Funciones de utilidad general para el frontend de Socios
 
 document.addEventListener('DOMContentLoaded', () => {
     // Confirmación para acciones destructivas

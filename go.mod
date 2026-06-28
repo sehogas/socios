@@ -1,4 +1,4 @@
-module github.com/sehogas/socios3
+module github.com/sehogas/socios
 
 go 1.25.0
 

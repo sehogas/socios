@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"net/http"
 
-	"github.com/sehogas/socios3/db/sqlc"
-	"github.com/sehogas/socios3/internal/auth"
+	"github.com/sehogas/socios/db/sqlc"
+	"github.com/sehogas/socios/internal/auth"
 )
 
 type contextKey string

@@ -14,7 +14,7 @@ sqlc:
 
 # Construir la imagen de Docker
 docker-build:
-	docker build -t socios3 .
+	docker build -t socios .
 
 # Construir y ejecutar el contenedor Docker mapeando volúmenes locales
 docker-run:
@@ -24,7 +24,7 @@ docker-run:
 		-v $$(pwd)/data:/app/data \
 		-v $$(pwd)/backups:/app/backups \
 		--name club_socios \
-		socios3
+		socios
 
 # Detener y eliminar el contenedor de Docker
 docker-stop:

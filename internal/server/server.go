@@ -5,15 +5,15 @@ import (
 	"io/fs"
 	"net/http"
 
-	"github.com/sehogas/socios3/db/sqlc"
-	"github.com/sehogas/socios3/internal/handlers"
-	"github.com/sehogas/socios3/internal/middleware"
-	"github.com/sehogas/socios3/web"
+	"github.com/sehogas/socios/db/sqlc"
+	"github.com/sehogas/socios/internal/handlers"
+	"github.com/sehogas/socios/internal/middleware"
+	"github.com/sehogas/socios/web"
 )
 
 // NewServer inicializa todos los manejadores, configura el ruteo
 // con middlewares y devuelve un http.Handler listo para escuchar peticiones.
-func NewServer(db *sql.DB) http.Handler {
+func NewServer(db *sql.DB, version string) http.Handler {
 	queries := sqlc.New(db)
 	handlers.SetDatabase(db, queries)
 	mw := middleware.NewMiddleware(queries)
@@ -47,6 +47,21 @@ func NewServer(db *sql.DB) http.Handler {
 		} else {
 			http.Redirect(w, r, "/cms/ver", http.StatusSeeOther)
 		}
+	})
+
+	// Endpoint de estado y versión (público)
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		status := "ok"
+		if err := db.PingContext(r.Context()); err != nil {
+			status = "error"
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if status == "error" {
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		w.Write([]byte(`{"status":"` + status + `","version":"` + version + `"}`))
 	})
 
 	// Rutas Públicas (Autenticación y CMS)

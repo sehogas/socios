@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sehogas/socios3/db/sqlc"
-	"github.com/sehogas/socios3/internal/auth"
-	"github.com/sehogas/socios3/internal/middleware"
+	"github.com/sehogas/socios/db/sqlc"
+	"github.com/sehogas/socios/internal/auth"
+	"github.com/sehogas/socios/internal/middleware"
 )
 
 type AuthHandler struct {

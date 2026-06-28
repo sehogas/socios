@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sehogas/socios3/db/sqlc"
-	"github.com/sehogas/socios3/internal/auth"
-	"github.com/sehogas/socios3/internal/backup"
-	"github.com/sehogas/socios3/internal/middleware"
+	"github.com/sehogas/socios/db/sqlc"
+	"github.com/sehogas/socios/internal/auth"
+	"github.com/sehogas/socios/internal/backup"
+	"github.com/sehogas/socios/internal/middleware"
 )
 
 type AdminHandler struct {

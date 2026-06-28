@@ -45,9 +45,9 @@ func SendMail(to, subject, body string) error {
 // SendVerificationEmail envía el correo de verificación con el enlace correspondiente.
 func SendVerificationEmail(baseURL, toEmail, token string) error {
 	link := fmt.Sprintf("%s/verificar-email?token=%s", baseURL, token)
-	subject := "Verifica tu correo electrónico - Socios3"
+	subject := "Verifica tu correo electrónico - Socios"
 	body := fmt.Sprintf(`
-		<h2>Bienvenido a Socios3</h2>
+		<h2>Bienvenido a Socios</h2>
 		<p>Por favor, confirma tu dirección de correo electrónico haciendo clic en el siguiente enlace:</p>
 		<p><a href="%s" style="display: inline-block; padding: 10px 20px; color: #fff; background-color: #2563eb; text-decoration: none; border-radius: 5px;">Confirmar Correo</a></p>
 		<p>O copia y pega esta URL en tu navegador:</p>
@@ -60,7 +60,7 @@ func SendVerificationEmail(baseURL, toEmail, token string) error {
 // SendPasswordRecoveryEmail envía el correo de restablecimiento de contraseña.
 func SendPasswordRecoveryEmail(baseURL, toEmail, token string) error {
 	link := fmt.Sprintf("%s/restablecer-password?token=%s", baseURL, token)
-	subject := "Restablece tu contraseña - Socios3"
+	subject := "Restablece tu contraseña - Socios"
 	body := fmt.Sprintf(`
 		<h2>Recuperación de Contraseña</h2>
 		<p>Hemos recibido una solicitud para restablecer tu contraseña. Haz clic en el siguiente botón para continuar:</p>
