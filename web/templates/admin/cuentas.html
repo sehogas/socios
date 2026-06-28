@@ -1,0 +1,224 @@
+{{ template "layout" . }}
+{{ define "title" }}Cuentas y Caja General{{ end }}
+{{ define "content" }}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 2px solid var(--border); padding-bottom: 1rem;">
+    <h2>Tesorería y Caja General del Club</h2>
+    <span style="font-size: 1.1rem; font-weight: 500;">
+        Saldo Total General: <strong style="color: var(--primary); font-size: 1.4rem;">${{ printf "%.2f" .TotalGeneral }}</strong>
+    </span>
+</div>
+
+<!-- Resumen de Saldos por Cuenta -->
+<div class="grid">
+    <div class="card" style="border-left: 4px solid var(--success);">
+        <div class="card-title">Caja Efectivo</div>
+        <div class="card-value">${{ printf "%.2f" .SaldoEfectivo }}</div>
+    </div>
+    <div class="card" style="border-left: 4px solid var(--primary);">
+        <div class="card-title">Cuenta Bancaria</div>
+        <div class="card-value">${{ printf "%.2f" .SaldoBanco }}</div>
+    </div>
+    <div class="card" style="border-left: 4px solid var(--warning);">
+        <div class="card-title">Mercado Pago</div>
+        <div class="card-value">${{ printf "%.2f" .SaldoMP }}</div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 2fr;">
+    <!-- Registrar Movimiento General (Servicios, buffet, etc.) -->
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Registrar Movimiento de Caja</h3>
+        <form action="/admin/cuentas/nueva-transaccion" method="POST">
+            <div class="form-group">
+                <label for="tipo">Tipo de Movimiento *</label>
+                <select name="tipo" id="tipo" class="form-control" required onchange="updateCategorias(this.value)">
+                    <option value="EGRESO">EGRESO (Pago de servicios, sueldos, compras, etc.)</option>
+                    <option value="INGRESO">INGRESO (Alquiler de salón, buffet, donaciones, etc.)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="cuenta">Cuenta Afectada *</label>
+                <select name="cuenta" id="cuenta" class="form-control" required>
+                    <option value="Efectivo">Caja Efectivo</option>
+                    <option value="Banco">Cuenta Bancaria (Transferencia)</option>
+                    <option value="MercadoPago">Mercado Pago</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="categoria">Categoría *</label>
+                <select name="categoria" id="categoria" class="form-control" required>
+                    <!-- Egresos por defecto -->
+                    <option value="Servicios">Pago de Servicios (Luz, gas, etc.)</option>
+                    <option value="Sueldos">Sueldos y Honorarios</option>
+                    <option value="Mantenimiento">Mantenimiento y Reparaciones</option>
+                    <option value="Compras">Compras y Suministros</option>
+                    <option value="Otros Egresos">Otros Egresos</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="monto">Monto ($) *</label>
+                <input type="number" step="0.01" name="monto" id="monto" class="form-control" required min="0.01">
+            </div>
+
+            <div class="form-group">
+                <label for="fecha">Fecha *</label>
+                <input type="date" name="fecha" id="fecha" class="form-control" required value="{{ .FechaHoy }}">
+            </div>
+
+            <div class="form-group">
+                <label for="descripcion">Descripción / Notas</label>
+                <input type="text" name="descripcion" id="descripcion" class="form-control" placeholder="Ej: Factura de Gas Jun 2026, Alquiler de quincho por evento">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Cargar a Caja</button>
+        </form>
+    </div>
+
+    <!-- Historial del Libro Diario (Caja General) -->
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Libro Diario (Historial de Caja)</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Categoría</th>
+                        <th>Cuenta</th>
+                        <th>Monto</th>
+                        <th>Descripción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .Movimientos }}
+                    <tr>
+                        <td>{{ .Fecha }}</td>
+                        <td>
+                            {{ if eq .Tipo "INGRESO" }}
+                                <span class="badge badge-success">Ingreso</span>
+                            {{ else }}
+                                <span class="badge badge-danger">Egreso</span>
+                            {{ end }}
+                        </td>
+                        <td><strong>{{ .Categoria }}</strong></td>
+                        <td>{{ .Cuenta }}</td>
+                        <td>${{ printf "%.2f" .Monto }}</td>
+                        <td>{{ .Descripcion.String }}</td>
+                    </tr>
+                    {{ else }}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay movimientos de caja registrados.</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<h2 style="margin-top: 3rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border); padding-bottom: 1rem; color: var(--primary);">Gestión de Valores de Cuota Social</h2>
+
+<div class="grid" style="grid-template-columns: 1fr 2fr;">
+    <!-- Formulario para Ajustar Valor de Cuota -->
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Establecer / Ajustar Valor</h3>
+        <form action="/admin/cuotas/valores" method="POST">
+            <div class="form-group">
+                <label for="clasificacion_cuota">Clasificación de Socio *</label>
+                <select name="clasificacion" id="clasificacion_cuota" class="form-control" required>
+                    <option value="Titular">Titular</option>
+                    <option value="Adherente">Adherente / Familiar</option>
+                    <option value="Honorario">Honorario</option>
+                    <option value="Vitalicio">Vitalicio</option>
+                    <option value="Temporario">Temporario</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="monto_cuota">Monto ($) *</label>
+                <input type="number" step="0.01" name="monto" id="monto_cuota" class="form-control" required min="0">
+            </div>
+
+            <div class="form-group">
+                <label for="vigencia_inicial">Vigencia Inicial (AAAA-MM) *</label>
+                <input type="month" name="vigencia_inicial" id="vigencia_inicial" class="form-control" required placeholder="YYYY-MM" value="{{ .VigenciaHoy }}">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Guardar Valor de Cuota</button>
+        </form>
+    </div>
+
+    <!-- Historial de Valores de Cuota -->
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Histórico de Valores de Cuota Social</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Clasificación</th>
+                        <th>Valor / Monto</th>
+                        <th>Vigencia Inicial</th>
+                        <th>Fecha de Registro</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .ValoresCuota }}
+                    <tr>
+                        <td><strong>{{ .Clasificacion }}</strong></td>
+                        <td>${{ printf "%.2f" .Monto }}</td>
+                        <td>{{ .VigenciaInicial }}</td>
+                        <td>{{ formatDate .FechaCreacion }}</td>
+                    </tr>
+                    {{ else }}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay valores de cuota social configurados en el histórico. Se utilizarán los valores por defecto.</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<script>
+function updateCategorias(tipo) {
+    const catSelect = document.getElementById('categoria');
+    catSelect.innerHTML = ''; // Limpiar opciones
+
+    if (tipo === 'EGRESO') {
+        const egresoCats = [
+            { val: 'Servicios', label: 'Pago de Servicios (Luz, gas, etc.)' },
+            { val: 'Sueldos', label: 'Sueldos y Honorarios' },
+            { val: 'Mantenimiento', label: 'Mantenimiento y Reparaciones' },
+            { val: 'Compras', label: 'Compras y Suministros' },
+            { val: 'Otros Egresos', label: 'Otros Egresos' }
+        ];
+        egresoCats.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.val;
+            opt.textContent = c.label;
+            catSelect.appendChild(opt);
+        });
+    } else {
+        const ingresoCats = [
+            { val: 'Cobro Cuota', label: 'Cobro de Cuota Social' },
+            { val: 'Adelanto', label: 'Adelanto de Cuota Social' },
+            { val: 'Alquiler', label: 'Alquiler de Salón / Quincho' },
+            { val: 'Buffet', label: 'Ingresos por Buffet / Cantina' },
+            { val: 'Donaciones', label: 'Donaciones y Subsidios' },
+            { val: 'Otros Ingresos', label: 'Otros Ingresos' }
+        ];
+        ingresoCats.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.val;
+            opt.textContent = c.label;
+            catSelect.appendChild(opt);
+        });
+    }
+}
+</script>
+{{ end }}

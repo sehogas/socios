@@ -1,0 +1,31 @@
+# Binarios y compilaciones de Go
+bin/
+
+# Bases de datos locales de SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Claves de sesión y secretos locales
+.session_key
+.env
+.env.*
+*.key
+*.pem
+
+# Directorios de datos y copias de seguridad de Docker / desarrollo
+data/
+backups/
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Configuraciones de editores/IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp

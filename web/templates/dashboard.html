@@ -1,0 +1,265 @@
+{{ template "layout" . }}
+{{ define "title" }}Inicio{{ end }}
+{{ define "content" }}
+
+{{ if eq .Session.Rol "admin" }}
+    <!-- VISTA ADMINISTRADOR -->
+    <h1 style="margin-bottom: 2rem;">Panel de Administración</h1>
+
+    <!-- Tarjetas de Resumen Financiero y de Socios -->
+    <div class="grid">
+        <div class="card" style="border-left: 4px solid var(--primary);">
+            <div class="card-title">Caja Total</div>
+            <div class="card-value">${{ printf "%.2f" .Stats.BalanceNeto }}</div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">
+                Ingresos: ${{ printf "%.2f" .Stats.TotalIngresos }} | Egresos: ${{ printf "%.2f" .Stats.TotalEgresos }}
+            </p>
+        </div>
+        <div class="card" style="border-left: 4px solid var(--success);">
+            <div class="card-title">Socios Activos</div>
+            <div class="card-value">{{ .Stats.SociosActivos }}</div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">
+                Inscriptos aprobados
+            </p>
+        </div>
+        <div class="card" style="border-left: 4px solid var(--warning);">
+            <div class="card-title">Solicitudes Pendientes</div>
+            <div class="card-value">{{ .Stats.SolicitudesPendientes }}</div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">
+                Pendientes de aprobación por comisión
+            </p>
+        </div>
+    </div>
+
+    <!-- Acciones Rápidas y Backups -->
+    <div class="grid" style="grid-template-columns: 2fr 1fr;">
+        <div class="card">
+            <h3 style="margin-bottom: 1rem;">Acciones de Administración</h3>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <a href="/admin/socios/nuevo" class="btn btn-primary">+ Cargar Nueva Ficha</a>
+                <a href="/admin/cuentas/nueva-transaccion" class="btn btn-secondary">$ Cargar Movimiento Caja</a>
+                <form action="/admin/cuotas/generar" method="POST" style="display: inline;" onsubmit="return confirm('¿Confirmas generar las cuotas del mes actual a todos los socios activos?');">
+                    <button type="submit" class="btn btn-success">Generar Cuotas del Mes</button>
+                </form>
+            </div>
+            
+            <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Resumen de Movimientos de Caja Recientes</h3>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Categoría</th>
+                            <th>Cuenta</th>
+                            <th>Monto</th>
+                            <th>Descripción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{ range .Stats.CajaReciente }}
+                        <tr>
+                            <td>{{ .Fecha }}</td>
+                            <td>
+                                {{ if eq .Tipo "INGRESO" }}
+                                    <span class="badge badge-success">Ingreso</span>
+                                {{ else }}
+                                    <span class="badge badge-danger">Egreso</span>
+                                {{ end }}
+                            </td>
+                            <td>{{ .Categoria }}</td>
+                            <td>{{ .Cuenta }}</td>
+                            <td>${{ printf "%.2f" .Monto }}</td>
+                            <td>{{ .Descripcion.String }}</td>
+                        </tr>
+                        {{ else }}
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: var(--text-muted);">No hay transacciones registradas recientemente.</td>
+                        </tr>
+                        {{ end }}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom: 1rem;">Copias de Seguridad (Backup)</h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
+                Genera un backup consistente de la base de datos SQLite actual.
+            </p>
+            <form action="/admin/backup/crear" method="POST">
+                <button type="submit" class="btn btn-primary btn-confirm-backup" style="width: 100%;">Generar Backup</button>
+            </form>
+            
+            {{ if .Stats.ArchivosBackup }}
+            <h4 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">Respaldos Locales:</h4>
+            <ul style="list-style: none; padding: 0; font-size: 0.85rem;">
+                {{ range .Stats.ArchivosBackup }}
+                    <li style="padding: 0.25rem 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between;">
+                        <span>{{ . }}</span>
+                        <a href="/admin/backup/descargar?archivo={{ . }}" style="font-weight: 500;">Descargar</a>
+                    </li>
+                {{ end }}
+            </ul>
+            {{ end }}
+        </div>
+
+        <div class="card" style="margin-top: 1.5rem;">
+            <h3 style="margin-bottom: 1rem;">Configuración General</h3>
+            <form action="/admin/config/nombre" method="POST">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="nombre_sistema">Nombre del Sistema</label>
+                    <input type="text" name="nombre_sistema" id="nombre_sistema" class="form-control" required value="{{ .NombreSistema }}">
+                </div>
+                <button type="submit" class="btn btn-secondary" style="width: 100%;">Guardar Nombre</button>
+            </form>
+        </div>
+    </div>
+
+{{ else }}
+    <!-- VISTA SOCIO / USUARIO WEB -->
+    <h1 style="margin-bottom: 1.5rem;">Hola, {{ .Session.Email }}</h1>
+    
+    {{ if .Socio }}
+        <div class="grid" style="grid-template-columns: 1fr 2fr;">
+            <!-- Información de Ficha de Socio -->
+            <div class="card">
+                <h3 style="margin-bottom: 1rem; border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem;">Mi Ficha de Socio</h3>
+                <p><strong>Socio Nº:</strong> {{ if .Socio.NumeroSocio.Valid }}{{ .Socio.NumeroSocio.String }}{{ else }}<span class="badge badge-warning">En revisión</span>{{ end }}</p>
+                <p><strong>Nombre completo:</strong> {{ .Socio.Nombre }} {{ .Socio.Apellido }}</p>
+                <p><strong>DNI:</strong> {{ .Socio.NroDocumento }}</p>
+                <p><strong>Clasificación:</strong> {{ .Socio.Clasificacion }}</p>
+                <p><strong>Domicilio:</strong> {{ .Socio.Domicilio.String }}</p>
+                <p><strong>Teléfono:</strong> {{ .Socio.Telefono.String }}</p>
+                <p><strong>Estado:</strong> 
+                    {{ if eq .Socio.Estado "Aprobado" }}
+                        <span class="badge badge-success">Aprobado / Activo</span>
+                    {{ else if eq .Socio.Estado "Rechazado" }}
+                        <span class="badge badge-danger">Rechazado</span>
+                    {{ else }}
+                        <span class="badge badge-warning">Pendiente de Aprobación</span>
+                    {{ end }}
+                </p>
+                {{ if eq .Socio.Activo 0 }}
+                    <div class="alert alert-danger" style="margin-top: 1rem; padding: 0.5rem; font-size: 0.85rem;">
+                        Tu cuenta está inhabilitada. Contacta a administración.
+                    </div>
+                {{ end }}
+            </div>
+
+            <!-- Estado de Cuenta Corriente y Cuotas -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3>Mi Cuenta Corriente</h3>
+                    <div style="text-align: right;">
+                        <span style="font-size: 0.9rem; color: var(--text-muted);">Saldo actual:</span>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: {{ if ge .Saldo 0.0 }}var(--success){{ else }}var(--danger){{ end }};">
+                            ${{ printf "%.2f" .Saldo }}
+                        </div>
+                    </div>
+                </div>
+
+                <h4 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">Mis Cuotas Generadas</h4>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Período</th>
+                                <th>Monto Original</th>
+                                <th>Pendiente</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{ range .Cuotas }}
+                            <tr>
+                                <td>{{ .Periodo }}</td>
+                                <td>${{ printf "%.2f" .MontoOriginal }}</td>
+                                <td>${{ printf "%.2f" .MontoPendiente }}</td>
+                                <td>
+                                    {{ if eq .Estado "Paga" }}
+                                        <span class="badge badge-success">Paga</span>
+                                    {{ else if eq .Estado "Parcial" }}
+                                        <span class="badge badge-warning">Parcial</span>
+                                    {{ else }}
+                                        <span class="badge badge-danger">Impaga</span>
+                                    {{ end }}
+                                </td>
+                            </tr>
+                            {{ else }}
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: var(--text-muted);">No tienes cuotas generadas registradas.</td>
+                            </tr>
+                            {{ end }}
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">Historial de Movimientos</h4>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>Descripción</th>
+                                <th>Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{ range .CtaCte }}
+                            <tr>
+                                <td>{{ .Fecha }}</td>
+                                <td>
+                                    {{ if eq .Tipo "CREDITO" }}
+                                        <span style="color: var(--success); font-weight: 500;">Crédito (+)</span>
+                                    {{ else }}
+                                        <span style="color: var(--danger); font-weight: 500;">Débito (-)</span>
+                                    {{ end }}
+                                </td>
+                                <td>{{ .Descripcion.String }}</td>
+                                <td>${{ printf "%.2f" .Monto }}</td>
+                            </tr>
+                            {{ else }}
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: var(--text-muted);">No hay movimientos registrados en tu cuenta.</td>
+                            </tr>
+                            {{ end }}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {{ else }}
+        <!-- Usuario registrado pero no vinculado a un socio contable -->
+        <div class="card" style="text-align: center; padding: 3rem 1rem; max-width: 600px; margin: 2rem auto;">
+            <h2 style="margin-bottom: 1rem; color: var(--warning);">Cuenta de Usuario Pendiente de Vinculación</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+                Tu usuario web con el correo <strong>{{ .Session.Email }}</strong> se ha registrado correctamente, pero aún no está asociado a una ficha de socio activa del club.
+            </p>
+            <div style="background: #f1f5f9; padding: 1rem; border-radius: 0.375rem; text-align: left; font-size: 0.9rem; margin-bottom: 1.5rem;">
+                <strong>Para socios del club:</strong> Indica a la administración tu correo electrónico (<strong>{{ .Session.Email }}</strong>) para que lo agregue a tu solicitud de inscripción aprobada. El sistema los asociará automáticamente y podrás ver tu cuenta corriente aquí.
+            </div>
+            <a href="/cms/ver" class="btn btn-primary">Ver Novedades del Club</a>
+        </div>
+    {{ end }}
+
+    <!-- Sección común para cambiar contraseña -->
+    <div class="card" style="max-width: 400px; margin-top: 3rem;">
+        <h3 style="margin-bottom: 1rem; color: var(--primary);">Cambiar Contraseña</h3>
+        <form action="/cambiar-password" method="POST">
+            <div class="form-group">
+                <label for="password_actual">Contraseña Actual *</label>
+                <input type="password" name="password_actual" id="password_actual" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="password_nuevo">Nueva Contraseña *</label>
+                <input type="password" name="password_nuevo" id="password_nuevo" class="form-control" required minlength="6">
+            </div>
+            <button type="submit" class="btn btn-secondary" style="width: 100%;">Actualizar Contraseña</button>
+        </form>
+    </div>
+
+{{ end }}
+
+{{ end }}

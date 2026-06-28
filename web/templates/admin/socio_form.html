@@ -1,0 +1,180 @@
+{{ template "layout" . }}
+{{ define "title" }}{{ if .Socio }}Editar Socio{{ else }}Cargar Solicitud de Inscripción{{ end }}{{ end }}
+{{ define "content" }}
+<div style="max-width: 800px; margin: 0 auto;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; border-bottom: 2px solid var(--border); padding-bottom: 1rem;">
+        <h2>{{ if .Socio }}Editar Socio: {{ .Socio.Nombre }} {{ .Socio.Apellido }}{{ else }}Carga de Solicitud de Inscripción{{ end }}</h2>
+        <a href="/admin/socios" class="btn btn-secondary">< Volver al Listado</a>
+    </div>
+
+    <form action="{{ if .Socio }}/admin/socios/editar?id={{ .Socio.ID }}{{ else }}/admin/socios/nuevo{{ end }}" method="POST" class="card">
+        <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Datos Personales (Solicitud de Inscripción)</h3>
+        
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <div class="form-group">
+                <label for="nombre">Nombre/s *</label>
+                <input type="text" name="nombre" id="nombre" class="form-control" required value="{{ if .Socio }}{{ .Socio.Nombre }}{{ end }}">
+            </div>
+            
+            <div class="form-group">
+                <label for="apellido">Apellido/s *</label>
+                <input type="text" name="apellido" id="apellido" class="form-control" required value="{{ if .Socio }}{{ .Socio.Apellido }}{{ end }}">
+            </div>
+
+            <div class="form-group">
+                <label for="email">Correo Electrónico (para vincular usuario web)</label>
+                <input type="email" name="email" id="email" class="form-control" placeholder="socio@ejemplo.com" value="{{ if and .Socio .Socio.Email.Valid }}{{ .Socio.Email.String }}{{ end }}">
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            
+            <div class="form-group">
+                <label for="tipo_documento">Tipo Documento *</label>
+                <select name="tipo_documento" id="tipo_documento" class="form-control" required>
+                    <option value="" disabled {{ if or (not .Socio) (not .Socio.TipoDocumento.Valid) (eq .Socio.TipoDocumento.String "") }}selected{{ end }}>-- Seleccione --</option>
+                    {{ $val := "" }}
+                    {{ if and .Socio .Socio.TipoDocumento.Valid }}
+                        {{ $val = .Socio.TipoDocumento.String }}
+                    {{ end }}
+                    <option value="DNI" {{ if eq $val "DNI" }}selected{{ end }}>DNI</option>
+                    <option value="LC" {{ if eq $val "LC" }}selected{{ end }}>LC</option>
+                    <option value="LE" {{ if eq $val "LE" }}selected{{ end }}>LE</option>
+                    <option value="PASAPORTE" {{ if eq $val "PASAPORTE" }}selected{{ end }}>PASAPORTE</option>
+                    <option value="OTRO" {{ if eq $val "OTRO" }}selected{{ end }}>OTRO</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="nro_documento">Nº Documento *</label>
+                <input type="text" name="nro_documento" id="nro_documento" class="form-control" required value="{{ if .Socio }}{{ .Socio.NroDocumento }}{{ end }}">
+            </div>
+
+            <div class="form-group">
+                <label for="telefono">Teléfono de Contacto</label>
+                <input type="text" name="telefono" id="telefono" class="form-control" value="{{ if and .Socio .Socio.Telefono.Valid }}{{ .Socio.Telefono.String }}{{ end }}">
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <div class="form-group">
+                <label for="clasificacion">Clasificación de Socio *</label>
+                <select name="clasificacion" id="clasificacion" class="form-control" required onchange="toggleTitularSelect(this.value)">
+                    {{ $clasif := "Titular" }}
+                    {{ if .Socio }}
+                        {{ $clasif = .Socio.Clasificacion }}
+                    {{ end }}
+                    <option value="Titular" {{ if eq $clasif "Titular" }}selected{{ end }}>Titular</option>
+                    <option value="Adherente" {{ if eq $clasif "Adherente" }}selected{{ end }}>Adherente / Familiar</option>
+                    <option value="Honorario" {{ if eq $clasif "Honorario" }}selected{{ end }}>Honorario</option>
+                    <option value="Vitalicio" {{ if eq $clasif "Vitalicio" }}selected{{ end }}>Vitalicio</option>
+                    <option value="Temporario" {{ if eq $clasif "Temporario" }}selected{{ end }}>Temporario</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="titular_wrapper" style="display: none;">
+                <label for="titular_id">Socio Titular Asociado *</label>
+                <select name="titular_id" id="titular_id" class="form-control">
+                    <option value="">-- Seleccione el Titular --</option>
+                    {{ range .Titulares }}
+                        <option value="{{ .ID }}" {{ if and $.Socio $.Socio.TitularID.Valid (eq .ID $.Socio.TitularID.Int64) }}selected{{ end }}>{{ .Apellido }}, {{ .Nombre }} (DNI: {{ .NroDocumento }})</option>
+                    {{ end }}
+                </select>
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <div class="form-group">
+                <label for="fecha_nacimiento">Fecha de Nacimiento</label>
+                <input type="date" name="fecha_nacimiento" id="fecha_nacimiento" class="form-control" value="{{ if and .Socio .Socio.FechaNacimiento.Valid }}{{ .Socio.FechaNacimiento.String }}{{ end }}">
+            </div>
+
+            <div class="form-group">
+                <label for="lugar_nacimiento">Lugar de Nacimiento</label>
+                <input type="text" name="lugar_nacimiento" id="lugar_nacimiento" class="form-control" placeholder="Ciudad, Provincia..." value="{{ if and .Socio .Socio.LugarNacimiento.Valid }}{{ .Socio.LugarNacimiento.String }}{{ end }}">
+            </div>
+
+            <div class="form-group">
+                <label for="nacionalidad">Nacionalidad</label>
+                <input type="text" name="nacionalidad" id="nacionalidad" class="form-control" value="{{ if and .Socio .Socio.Nacionalidad.Valid }}{{ .Socio.Nacionalidad.String }}{{ else }}Argentina{{ end }}">
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <div class="form-group">
+                <label for="estado_civil">Estado Civil</label>
+                <input type="text" name="estado_civil" id="estado_civil" class="form-control" value="{{ if and .Socio .Socio.EstadoCivil.Valid }}{{ .Socio.EstadoCivil.String }}{{ end }}">
+            </div>
+
+            <div class="form-group">
+                <label for="profesion">Profesión / Ocupación</label>
+                <input type="text" name="profesion" id="profesion" class="form-control" value="{{ if and .Socio .Socio.Profesion.Valid }}{{ .Socio.Profesion.String }}{{ end }}">
+            </div>
+
+            <div class="form-group">
+                <label for="lugar_trabajo">Lugar de Trabajo</label>
+                <input type="text" name="lugar_trabajo" id="lugar_trabajo" class="form-control" value="{{ if and .Socio .Socio.LugarTrabajo.Valid }}{{ .Socio.LugarTrabajo.String }}{{ end }}">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="domicilio">Domicilio Particular</label>
+            <input type="text" name="domicilio" id="domicilio" class="form-control" placeholder="Calle, Número, Localidad..." value="{{ if and .Socio .Socio.Domicilio.Valid }}{{ .Socio.Domicilio.String }}{{ end }}">
+        </div>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1.5rem; color: var(--primary); border-top: 1px solid var(--border); padding-top: 1.5rem;">Administración y Estado de Ficha</h3>
+
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <div class="form-group">
+                <label for="numero_socio">Número de Socio (Manual/Histórico)</label>
+                <input type="text" name="numero_socio" id="numero_socio" class="form-control" placeholder="Vacío para auto-generar" value="{{ if and .Socio .Socio.NumeroSocio.Valid }}{{ .Socio.NumeroSocio.String }}{{ end }}">
+                <small style="color: var(--text-muted);">Si se deja vacío en estado 'Aprobado', se genera correlativo.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="estado">Estado de la Solicitud</label>
+                <select name="estado" id="estado" class="form-control">
+                    <option value="Pendiente" {{ if .Socio }}{{ if eq .Socio.Estado "Pendiente" }}selected{{ end }}{{ end }}>Pendiente</option>
+                    <option value="Aprobado" {{ if .Socio }}{{ if eq .Socio.Estado "Aprobado" }}selected{{ end }}{{ end }}>Aprobado</option>
+                    <option value="Rechazado" {{ if .Socio }}{{ if eq .Socio.Estado "Rechazado" }}selected{{ end }}{{ end }}>Rechazado</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="activo">Acceso de Socio</label>
+                <select name="activo" id="activo" class="form-control">
+                    <option value="1" {{ if .Socio }}{{ if eq .Socio.Activo 1 }}selected{{ end }}{{ end }}>Habilitado / Activo</option>
+                    <option value="0" {{ if .Socio }}{{ if eq .Socio.Activo 0 }}selected{{ end }}{{ end }}>Inhabilitado / Suspendido</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 2rem; justify-content: flex-end;">
+            <a href="/admin/socios" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">{{ if .Socio }}Guardar Cambios{{ else }}Cargar Planilla{{ end }}</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function toggleTitularSelect(value) {
+    const wrapper = document.getElementById('titular_wrapper');
+    const select = document.getElementById('titular_id');
+    if (value === 'Adherente') {
+        wrapper.style.display = 'block';
+        select.setAttribute('required', 'required');
+    } else {
+        wrapper.style.display = 'none';
+        select.removeAttribute('required');
+        select.value = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const clasifEl = document.getElementById('clasificacion');
+    if (clasifEl) {
+        toggleTitularSelect(clasifEl.value);
+    }
+});
+</script>
+{{ end }}

@@ -1,0 +1,83 @@
+{{ template "layout" . }}
+{{ define "title" }}Listado de Socios{{ end }}
+{{ define "content" }}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2>Administración de Socios</h2>
+    <a href="/admin/socios/nuevo" class="btn btn-primary">+ Cargar Ficha de Inscripción</a>
+</div>
+
+<div class="table-responsive">
+    <table>
+        <thead>
+            <tr>
+                <th>Nº Socio</th>
+                <th>Nombre y Apellido</th>
+                <th>Documento</th>
+                <th>Email</th>
+                <th>Estado</th>
+                <th>Acceso</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range .Socios }}
+            <tr>
+                <td>
+                    {{ if .NumeroSocio.Valid }}
+                        <strong>{{ .NumeroSocio.String }}</strong>
+                    {{ else }}
+                        <span style="color: var(--text-muted); font-style: italic;">Sin asignar</span>
+                    {{ end }}
+                </td>
+                <td>
+                    {{ .Apellido }}, {{ .Nombre }}
+                    <br>
+                    <span style="font-size: 0.75rem; padding: 0.15rem 0.35rem; border-radius: 0.25rem; background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; font-weight: 500;">
+                        {{ .Clasificacion }}
+                    </span>
+                </td>
+                <td>{{ .TipoDocumento.String }} {{ .NroDocumento }}</td>
+                <td>{{ if .Email.Valid }}{{ .Email.String }}{{ else }}<span style="color: var(--text-muted);">-</span>{{ end }}</td>
+                <td>
+                    {{ if eq .Estado "Aprobado" }}
+                        <span class="badge badge-success">Aprobado</span>
+                    {{ else if eq .Estado "Rechazado" }}
+                        <span class="badge badge-danger">Rechazado</span>
+                    {{ else }}
+                        <span class="badge badge-warning">Pendiente</span>
+                    {{ end }}
+                </td>
+                <td>
+                    {{ if eq .Activo 1 }}
+                        <span class="badge badge-success">Habilitado</span>
+                    {{ else }}
+                        <span class="badge badge-danger">Inhabilitado</span>
+                    {{ end }}
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <a href="/admin/socios/detalle?id={{ .ID }}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Ficha y Cta Cte</a>
+                        <a href="/admin/socios/editar?id={{ .ID }}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; background-color: #cbd5e1;">Editar</a>
+                        
+                        {{ if eq .Estado "Pendiente" }}
+                            <a href="/admin/socios/aprobar?id={{ .ID }}" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" onclick="return confirm('¿Confirmas la aprobación del socio? Se le asignará un número automáticamente.');">Aprobar</a>
+                            <a href="/admin/socios/rechazar?id={{ .ID }}" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" onclick="return confirm('¿Confirmas el rechazo de la solicitud?');">Rechazar</a>
+                        {{ else }}
+                            {{ if eq .Activo 1 }}
+                                <a href="/admin/socios/toggle-activo?id={{ .ID }}&activo=0" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" onclick="return confirm('¿Inhabilitar el acceso de este socio?');">Inhabilitar</a>
+                            {{ else }}
+                                <a href="/admin/socios/toggle-activo?id={{ .ID }}&activo=1" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Habilitar</a>
+                            {{ end }}
+                        {{ end }}
+                    </div>
+                </td>
+            </tr>
+            {{ else }}
+            <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay fichas de inscripción cargadas en el sistema.</td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+{{ end }}

@@ -1,0 +1,98 @@
+{{ template "layout" . }}
+{{ define "title" }}Administrar Usuarios{{ end }}
+{{ define "content" }}
+<div style="border-bottom: 2px solid var(--border); padding-bottom: 1rem; margin-bottom: 2rem;">
+    <h2>Administración de Usuarios del Sistema</h2>
+</div>
+
+<div class="grid" style="grid-template-columns: 2fr 1fr;">
+    <!-- Listado de usuarios -->
+    <div class="card">
+        <h3 style="margin-bottom: 1rem; color: var(--primary);">Usuarios Registrados</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Fecha Registro</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .Usuarios }}
+                    <tr>
+                        <td><strong>{{ .Email }}</strong></td>
+                        <td>
+                            {{ if eq .Rol "admin" }}
+                                <span class="badge badge-success" style="background-color: #dbeafe; color: #1e40af;">Administrador</span>
+                            {{ else }}
+                                <span class="badge badge-secondary" style="background-color: #f1f5f9; color: #475569;">Usuario Web</span>
+                            {{ end }}
+                        </td>
+                        <td>
+                            {{ if eq .Activo.Int64 1 }}
+                                <span class="badge badge-success">Activo</span>
+                            {{ else }}
+                                <span class="badge badge-danger">Bloqueado</span>
+                            {{ end }}
+                        </td>
+                        <td>{{ formatDate .FechaCreacion }}</td>
+                        <td>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <!-- Cambiar Rol -->
+                                <form action="/admin/usuarios/cambiar-rol?id={{ .ID }}" method="POST" style="display: inline;">
+                                    <input type="hidden" name="rol" value="{{ if eq .Rol "admin" }}user{{ else }}admin{{ end }}">
+                                    <button type="submit" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" onclick="return confirm('¿Cambiar el rol de este usuario?');">
+                                        Hacer {{ if eq .Rol "admin" }}Usuario{{ else }}Admin{{ end }}
+                                    </button>
+                                </form>
+                                
+                                <!-- Bloquear / Habilitar -->
+                                <form action="/admin/usuarios/toggle-activo?id={{ .ID }}" method="POST" style="display: inline;">
+                                    <input type="hidden" name="activo" value="{{ if eq .Activo.Int64 1 }}0{{ else }}1{{ end }}">
+                                    <button type="submit" class="btn {{ if eq .Activo.Int64 1 }}btn-danger{{ else }}btn-success{{ end }}" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                        {{ if eq .Activo.Int64 1 }}Bloquear{{ else }}Habilitar{{ end }}
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {{ else }}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay usuarios registrados.</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Registrar Usuario Manualmente -->
+    <div class="card">
+        <h3 style="margin-bottom: 1rem; color: var(--primary);">Registrar Usuario Web</h3>
+        <form action="/admin/usuarios/nuevo" method="POST">
+            <div class="form-group">
+                <label for="email">Correo Electrónico *</label>
+                <input type="email" name="email" id="email" class="form-control" required placeholder="correo@ejemplo.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Contraseña *</label>
+                <input type="password" name="password" id="password" class="form-control" required minlength="6">
+            </div>
+
+            <div class="form-group">
+                <label for="rol">Rol del Usuario *</label>
+                <select name="rol" id="rol" class="form-control" required>
+                    <option value="user">Usuario Web (Socio)</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Registrar Usuario</button>
+        </form>
+    </div>
+</div>
+{{ end }}

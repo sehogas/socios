@@ -1,0 +1,173 @@
+# Socios3 - Sistema de Socios y Gestión Contable
+
+Socios3 es una plataforma monolítica diseñada específicamente para la administración de fichas de socios, cuentas corrientes individuales, tesorería general (caja), un mini-CMS de contenidos y copias de seguridad consistentes en caliente.
+
+El sistema fue concebido para digitalizar el flujo de inscripción física (basado en la planilla del Centro de Residentes Formoseños en Tierra del Fuego), automatizar la generación y cobro de cuotas mensuales, y facilitar un balance de ingresos y egresos a través de un dashboard.
+
+---
+
+## 1. Stack Tecnológico e Infraestructura
+
+*   **Lenguaje y Backend:** Go 1.22+ (utilizando únicamente la biblioteca estándar `net/http` para ruteo).
+*   **Base de Datos:** SQLite.
+*   **Driver SQLite:** `modernc.org/sqlite` (implementación pura de Go, **libre de CGO**). Esto permite compilar el proyecto de forma estática en cualquier entorno (incluyendo Docker y compilación cruzada) sin necesidad de disponer de un compilador de C (`gcc`).
+*   **Acceso a Datos:** **sqlc** (generación de código Go a partir de consultas SQL estrictamente tipadas).
+*   **Interfaz de Usuario (UI):** Renderizado en el servidor mediante el motor nativo `html/template`. Estilos en CSS puro (Vanilla CSS) estructurados de forma responsiva (*mobile-first*) con Grid y Flexbox. Interactividad básica en Vanilla JS.
+*   **Empaquetado (Assets):** Todos los archivos de plantillas HTML, CSS y JS se compilan dentro del binario final utilizando el paquete nativo `embed` de Go. El programa es auto-contenido y ejecutable en un solo archivo.
+
+---
+
+## 2. Arquitectura de Directorios
+
+El código sigue una estructura limpia y desacoplada típica en el ecosistema Go:
+
+```text
+socios3/
+├── cmd/
+│   └── server/
+│       └── main.go           # Punto de entrada. Inicializa DB, ejecuta migraciones y levanta el servidor HTTP.
+├── db/
+│   ├── db.go                 # Expone el esquema SQL embebido para las migraciones automáticas.
+│   ├── schema.sql            # Definición DDL (tablas y restricciones).
+│   ├── query.sql             # Consultas SQL anotadas para sqlc.
+│   └── sqlc/                 # Código Go tipado generado automáticamente por sqlc.
+├── internal/
+│   ├── auth/
+│   │   ├── hash.go           # Utilidades de hashing de contraseñas usando bcrypt.
+│   │   └── session.go        # Cifrado y descifrado de sesiones en cookies mediante AES-GCM.
+│   ├── backup/
+│   │   └── backup.go         # Lógica de respaldo seguro y caliente usando VACUUM INTO.
+│   ├── database/
+│   │   ├── db.go             # Inicialización y configuración de conexión SQLite (modo WAL y FKs).
+│   │   └── migrations.go     # Verificación e inicialización automática del esquema de base de datos.
+│   ├── middleware/
+│   │   └── auth.go           # Middlewares de control de acceso, verificación de roles y de socio activo.
+│   ├── handlers/
+│   │   ├── admin.go          # Dashboard principal, gestión de usuarios del sistema y backups.
+│   │   ├── auth.go           # Formulario y endpoints de login, registro y cierre de sesión.
+│   │   ├── cms.go            # Visualización pública y administración del CMS.
+│   │   ├── cuentas.go        # Gestión de movimientos de caja y facturación masiva de cuotas.
+│   │   ├── socios.go         # CRUD de socios, cobro/adeudo de cuenta corriente y pagos de cuotas.
+│   │   └── render.go         # Helper para inyectar datos globales y procesar templates HTML embebidos.
+│   └── server/
+│       └── server.go         # Definición del multiplexer HTTP y enrutamiento con middlewares.
+├── web/
+│   ├── embed.go              # Directiva go:embed para compilar las carpetas templates y static.
+│   ├── static/
+│   │   ├── css/style.css     # Hoja de estilos responsiva y minimalista.
+│   │   └── js/main.js        # Script de confirmaciones y alertas en el cliente.
+│   └── templates/            # Plantillas Go HTML organizadas por sección.
+├── Dockerfile                # Compilación multi-stage y empaquetado del contenedor.
+├── go.mod
+└── sqlc.yaml                 # Configuración de sqlc.
+```
+
+---
+
+## 3. Lógica Contable y Flujos del Negocio
+
+### A. Vinculación Socio - Usuario Web
+*   Los usuarios se registran libremente en la web usando un correo electrónico obligatorio. Al registrarse son usuarios huérfanos independientes de la parte contable del club.
+*   El administrador carga la ficha digitalizada a partir de la planilla física de inscripción.
+*   Cuando el administrador asigna e ingresa el mismo correo electrónico en la ficha de socio que el usuario usó en su registro, el sistema los asocia automáticamente.
+*   Una vez asociados, el socio puede visualizar su estado de cuenta corriente, sus cuotas pendientes y su historial de pagos desde su panel personal.
+
+### B. Relación Cuenta Corriente vs. Caja General
+El sistema divide los movimientos en dos universos que se comunican:
+1.  **Cuenta Corriente del Socio:** Mide la deuda individual.
+    *   *Débitos:* Cargos de cuota mensual o alquileres. Aumentan la deuda del socio.
+    *   *Créditos:* Pagos realizados por el socio o dinero entregado como adelanto. Reducen la deuda o crean saldo a favor.
+2.  **Caja General del Club (Tesorería):** Registra el flujo de fondos real (ingresos/egresos) distribuidos en cuentas de efectivo, banco o MercadoPago.
+
+**Interconexión en los Cobros:**
+*   Cuando un administrador registra un **Crédito** en la Cuenta Corriente de un socio, puede seleccionar a qué cuenta real del club ingresó el dinero (ej. Caja Efectivo, Banco).
+*   Al guardar el movimiento, una transacción de base de datos segura inserta el crédito en la cuenta corriente del socio y crea de forma atómica un registro de **Ingreso** en la Caja General del club.
+*   Si se registra una corrección de saldo que no involucra efectivo, se puede seleccionar "No registrar en Caja".
+
+### C. Generación y Pago de Cuotas
+*   **Generación Mensual:** El administrador puede facturar de forma masiva a todos los socios aprobados y activos. Esto inserta un registro en la tabla `cuotas_generadas` (estado `Impaga`) y genera un **Débito** en la Cuenta Corriente de cada socio por el valor configurado.
+*   **Uso de Adelantos (Pago desde Cta Cte):** Si un socio tiene saldo a favor en su Cuenta Corriente (registrado previamente como un crédito/adelanto), el administrador puede seleccionar la cuota impaga y presionar "Pagar desde Cta Cte". Esto:
+    1.  Verifica que el saldo a favor sea suficiente.
+    2.  Registra un **Débito** en la Cuenta Corriente por el cobro de la cuota.
+    3.  Actualiza el estado de la cuota generada a `Paga`.
+
+---
+
+## 4. Diseño de Seguridad
+
+*   **Contraseñas:** Encriptadas en base de datos usando **bcrypt** con costo por defecto.
+*   **Sesiones (Client-Side Encrypted Cookies):** En lugar de persistir sesiones en la base de datos y realizar lecturas por cada recurso solicitado, Socios3 cifra la estructura de sesión en formato JSON utilizando **AES-GCM (criptografía autenticada)**.
+    *   La clave de cifrado de 32 bytes se genera de forma aleatoria en el arranque del servidor y se guarda localmente en el archivo `.session_key`. Esto permite mantener las sesiones activas de los usuarios incluso si el servidor se reinicia.
+    *   Las cookies se configuran como `HTTP-Only`, `SameSite=Lax` y con banderas de seguridad correspondientes.
+*   **Middleware de Socio Activo:** Al intentar acceder a secciones restringidas de socios, el middleware valida que la cuenta del socio vinculada al email tenga la propiedad `activo = 1` y `estado = 'Aprobado'`. Si la administración inhabilita a un socio (por morosidad u otra causa), su acceso web a contenido restringido se bloquea de forma inmediata.
+
+---
+
+## 5. Instrucciones para el Desarrollador
+
+### Requisitos
+*   Go (v1.22+) instalado localmente.
+*   Binario de `sqlc` instalado (opcional, necesario si cambias las consultas SQL):
+    ```bash
+    go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+    ```
+
+### Ejecución en Modo Desarrollo
+Para iniciar el servidor localmente con recarga manual:
+```bash
+# Descargar dependencias declaradas en go.mod
+go mod tidy
+
+# Iniciar servidor local
+go run cmd/server/main.go
+```
+El servidor escuchará por defecto en `http://localhost:8080`.
+
+*Nota de Inicialización:* La base de datos se inicializa automáticamente al detectar que está vacía. El primer usuario que se registre a través del formulario web (`/register`) será promovido de manera automática al rol de **Administrador**.
+
+### Modificaciones en Base de Datos (Flujo de Trabajo con sqlc)
+Si deseas agregar columnas o nuevas tablas:
+1.  Modifica el archivo DDL de base de datos en [db/schema.sql](file:///home/shogas/go/src/github.com/sehogas/socios3/db/schema.sql).
+2.  Escribe las consultas correspondientes en [db/query.sql](file:///home/shogas/go/src/github.com/sehogas/socios3/db/query.sql) utilizando las anotaciones de sqlc.
+3.  Regenera el código Go corriendo el compilador de sqlc en la raíz del proyecto:
+    ```bash
+    sqlc generate
+    ```
+4.  Implementa la lógica del controlador correspondiente en `internal/handlers/` consumiendo los métodos autogenerados.
+
+---
+
+## 6. Mantenimiento del Sistema en Producción
+
+### Ejecución en Docker
+Para entornos de producción, se recomienda ejecutar el sistema encapsulado. La persistencia de la base de datos SQLite y las copias de seguridad se garantizan mapeando volúmenes locales del host al contenedor.
+
+1.  **Construir la imagen:**
+    ```bash
+    docker build -t socios3 .
+    ```
+2.  **Lanzar el contenedor persistiendo datos:**
+    ```bash
+    docker run -d \
+      -p 8080:8080 \
+      -v $(pwd)/data:/app/data \
+      -v $(pwd)/backups:/app/backups \
+      --name club_socios \
+      socios3
+    ```
+    *   La base de datos SQLite se creará y mantendrá en `./data/database.db` en tu máquina host.
+    *   Las copias de seguridad del administrador se guardarán físicamente en la carpeta `./backups/` del host.
+
+### Copias de Seguridad (Backups)
+*   **Generación:** En el panel de control del administrador, al pulsar "Generar Backup", el sistema ejecuta un respaldo en caliente. Este archivo se escribe físicamente en `/app/backups/backup_YYYYMMDD_HHMMSS.db`.
+*   **Descarga:** Al generarse, el navegador web iniciará automáticamente la descarga del archivo `.db` en tu computadora.
+*   **Restauración:** Para restaurar el sistema a un punto anterior:
+    1.  Detén el contenedor o servidor.
+    2.  Reemplaza el archivo activo `database.db` (ubicado en tu volumen `data/`) con una copia del backup renombrada a `database.db`.
+    3.  Vuelve a iniciar el servidor.
+
+### Variables de Entorno de Configuración
+Puedes modificar el comportamiento inicial del binario o del contenedor utilizando las siguientes variables de entorno:
+*   `PORT`: Puerto HTTP donde escuchará la aplicación (Por defecto: `8080`).
+*   `DATABASE_PATH`: Ruta absoluta o relativa al archivo de base de datos SQLite (Por defecto: `./database.db`).
+*   `SESSION_SECRET`: Clave de encriptación manual para cookies. Si no se provee, el servidor genera una clave aleatoria persistida en un archivo `.session_key` en el directorio de trabajo.

@@ -1,0 +1,125 @@
+{{ template "layout" . }}
+{{ define "title" }}Administrar CMS - Contenido{{ end }}
+{{ define "content" }}
+<div style="border-bottom: 2px solid var(--border); padding-bottom: 1rem; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+    <h2>Administración del CMS / Contenido</h2>
+    {{ if .Pagina }}
+        <a href="/admin/paginas" class="btn btn-secondary">< Crear Nueva Página</a>
+    {{ end }}
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr;">
+    <!-- Lista de Páginas -->
+    <div class="card">
+        <h3 style="margin-bottom: 1rem; color: var(--primary);">Páginas Creadas</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Visibilidad</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .Paginas }}
+                    <tr>
+                        <td>
+                            <strong>{{ .Titulo }}</strong><br>
+                            <small style="color: var(--text-muted);">/cms/ver?slug={{ .Slug }}</small>
+                        </td>
+                        <td>
+                            {{ if eq .Visibilidad "publico" }}
+                                <span class="badge badge-success" style="background-color: #f0fdf4; color: #166534;">Público</span>
+                            {{ else if eq .Visibilidad "socios" }}
+                                <span class="badge badge-warning" style="background-color: #fffbeb; color: #92400e;">Socios</span>
+                            {{ else }}
+                                <span class="badge badge-danger" style="background-color: #fef2f2; color: #991b1b;">Admin</span>
+                            {{ end }}
+                        </td>
+                        <td>
+                            {{ if eq .Estado "Publicado" }}
+                                <span class="badge badge-success">Publicado</span>
+                            {{ else }}
+                                <span class="badge badge-secondary" style="background-color: #cbd5e1; color: #334155;">Borrador</span>
+                            {{ end }}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 0.25rem;">
+                                <a href="/admin/paginas?edit_id={{ .ID }}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Editar</a>
+                                <form action="/admin/paginas/eliminar?id={{ .ID }}" method="POST" style="display: inline;" onsubmit="return confirm('¿Eliminar esta página?');">
+                                    <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Eliminar</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {{ else }}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay páginas cargadas.</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Formulario de Creación / Edición -->
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; color: var(--primary);">
+            {{ if .Pagina }}Editar Página: "{{ .Pagina.Titulo }}"{{ else }}Crear Nueva Página{{ end }}
+        </h3>
+        
+        <form action="{{ if .Pagina }}/admin/paginas/editar?id={{ .Pagina.ID }}{{ else }}/admin/paginas/nueva{{ end }}" method="POST">
+            <div class="form-group">
+                <label for="titulo">Título de la Página *</label>
+                <input type="text" name="titulo" id="titulo" class="form-control" required placeholder="Ej: Bienvenidos al Club" value="{{ if .Pagina }}{{ .Pagina.Titulo }}{{ end }}" oninput="generateSlug(this.value)">
+            </div>
+
+            <div class="form-group">
+                <label for="slug">URL Amigable / Slug *</label>
+                <input type="text" name="slug" id="slug" class="form-control" required placeholder="ej-bienvenidos-al-club" value="{{ if .Pagina }}{{ .Pagina.Slug }}{{ end }}">
+                <small style="color: var(--text-muted);">Debe ser único y contener solo letras, números y guiones.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="visibilidad">Visibilidad *</label>
+                <select name="visibilidad" id="visibilidad" class="form-control">
+                    <option value="publico" {{ if .Pagina }}{{ if eq .Pagina.Visibilidad "publico" }}selected{{ end }}{{ end }}>Público (Cualquier visitante)</option>
+                    <option value="socios" {{ if .Pagina }}{{ if eq .Pagina.Visibilidad "socios" }}selected{{ end }}{{ end }}>Solo Socios (Usuarios logueados con ficha activa)</option>
+                    <option value="admin" {{ if .Pagina }}{{ if eq .Pagina.Visibilidad "admin" }}selected{{ end }}{{ end }}>Solo Administradores</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="estado">Estado *</label>
+                <select name="estado" id="estado" class="form-control">
+                    <option value="Publicado" {{ if .Pagina }}{{ if eq .Pagina.Estado "Publicado" }}selected{{ end }}{{ end }}>Publicado (Visible)</option>
+                    <option value="Borrador" {{ if .Pagina }}{{ if eq .Pagina.Estado "Borrador" }}selected{{ end }}{{ end }}>Borrador (Oculto)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="contenido">Contenido (HTML o texto plano) *</label>
+                <textarea name="contenido" id="contenido" class="form-control" rows="8" required placeholder="Escribe el contenido aquí..." style="resize: vertical; font-family: monospace;">{{ if .Pagina }}{{ .Pagina.Contenido }}{{ end }}</textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                {{ if .Pagina }}Guardar Cambios{{ else }}Crear Página{{ end }}
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+function generateSlug(text) {
+    {{ if not .Pagina }} // Solo auto-generar en creación
+    const slug = text.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '') // Quitar caracteres raros
+        .replace(/\s+/g, '-')         // Espacios por guiones
+        .replace(/-+/g, '-');         // Quitar guiones duplicados
+    document.getElementById('slug').value = slug;
+    {{ end }}
+}
+</script>
+{{ end }}

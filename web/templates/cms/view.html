@@ -1,0 +1,51 @@
+{{ template "layout" . }}
+{{ define "title" }}{{ if .Pagina }}{{ .Pagina.Titulo }}{{ else }}Novedades del Club{{ end }}{{ end }}
+{{ define "content" }}
+
+{{ if .Pagina }}
+    <!-- Vista de una única página / artículo -->
+    <div style="max-width: 800px; margin: 0 auto;">
+        <div style="margin-bottom: 2rem; border-bottom: 2px solid var(--border); padding-bottom: 1rem;">
+            <a href="/cms/ver" class="btn btn-secondary" style="margin-bottom: 1rem;">< Volver a Novedades</a>
+            <h1>{{ .Pagina.Titulo }}</h1>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">
+                Actualizado el {{ formatDate .Pagina.FechaActualizacion }}
+            </p>
+        </div>
+        
+        <div class="card" style="padding: 2rem; line-height: 1.8; font-size: 1.1rem;">
+            <!-- Renderiza el contenido directamente. En producción se puede usar una librería Markdown -->
+            {{ .ContenidoHTML }}
+        </div>
+    </div>
+{{ else }}
+    <!-- Listado de novedades/páginas accesibles -->
+    <h2 style="margin-bottom: 2rem;">Novedades y Páginas del Club</h2>
+
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+        {{ range .Paginas }}
+        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h3 style="margin-bottom: 0.75rem; color: var(--primary);">{{ .Titulo }}</h3>
+                <span class="badge {{ if eq .Visibilidad "publico" }}badge-success{{ else if eq .Visibilidad "socios" }}badge-warning{{ else }}badge-danger{{ end }}" style="margin-bottom: 1rem;">
+                    Acceso: {{ .Visibilidad }}
+                </span>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.75rem;">
+                    Actualizado el {{ formatDate .FechaActualizacion }}
+                </p>
+                <p style="font-size: 0.95rem; line-height: 1.5; color: #475569; margin-bottom: 1.5rem;">
+                    {{ summary .Contenido }}
+                </p>
+            </div>
+            
+            <a href="/cms/ver?slug={{ .Slug }}" class="btn btn-primary" style="align-self: flex-start;">Leer más</a>
+        </div>
+        {{ else }}
+        <div class="card" style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
+            <p style="color: var(--text-muted);">No hay novedades disponibles en este momento.</p>
+        </div>
+        {{ end }}
+    </div>
+{{ end }}
+
+{{ end }}
