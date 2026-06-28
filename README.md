@@ -1,5 +1,18 @@
 # Socios - Sistema de Socios y Gestión Contable
 
+[![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://golang.org)
+[![Go Reference](https://pkg.go.dev/badge/github.com/sehogas/socios.svg)](https://pkg.go.dev/github.com/sehogas/socios)
+[![Go Report Card](https://goreportcard.com/badge/github.com/sehogas/socios)](https://goreportcard.com/report/github.com/sehogas/socios)
+[![Tests](https://img.shields.io/badge/tests-passed-brightgreen?style=flat-square&logo=go)](file:///home/shogas/go/src/github.com/sehogas/socios)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](file:///home/shogas/go/src/github.com/sehogas/socios/LICENSE)
+[![Database: SQLite](https://img.shields.io/badge/Database-SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://sqlite.org)
+[![CGO Free](https://img.shields.io/badge/CGO--Free-modernc--sqlite-brightgreen?style=flat-square)](https://modernc.org/sqlite)
+[![sqlc](https://img.shields.io/badge/Generated%20by-sqlc-blue?style=flat-square)](https://sqlc.dev)
+[![SweetAlert2](https://img.shields.io/badge/UI-SweetAlert2-E89088?style=flat-square)](https://sweetalert2.github.io)
+[![GitHub release](https://img.shields.io/github/v/release/sehogas/socios?style=flat-square)](https://github.com/sehogas/socios/releases)
+[![GitHub stars](https://img.shields.io/github/stars/sehogas/socios?style=flat-square&color=blue)](https://github.com/sehogas/socios/stargazers)
+
+
 Socios es una plataforma monolítica diseñada específicamente para la administración de fichas de socios, cuentas corrientes individuales, tesorería general (caja), un mini-CMS de contenidos y copias de seguridad consistentes en caliente.
 
 El sistema fue concebido para digitalizar el flujo de inscripción física (basado en la planilla del Centro de Residentes Formoseños en Tierra del Fuego), automatizar la generación y cobro de cuotas mensuales, y facilitar un balance de ingresos y egresos a través de un dashboard.
