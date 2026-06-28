@@ -132,8 +132,8 @@
                             </td>
                             <td>
                                 {{ if ne .Estado "Paga" }}
-                                    <form action="/admin/socios/cuotas/pagar?id={{ .ID }}&socio_id={{ $.Socio.ID }}" method="POST" style="display: inline-block;">
-                                        <button type="submit" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" onclick="return confirm('¿Registrar pago total de esta cuota? Se descontará del saldo a favor de su Cuenta Corriente.');">Pagar desde Cta Cte</button>
+                                    <form action="/admin/socios/cuotas/pagar?id={{ .ID }}&socio_id={{ $.Socio.ID }}" method="POST" style="display: inline-block;" data-confirm="¿Registrar pago total de esta cuota? Se descontará del saldo a favor de su Cuenta Corriente.">
+                                        <button type="submit" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Pagar desde Cta Cte</button>
                                     </form>
                                 {{ else }}
                                     <span style="color: var(--text-muted); font-size: 0.85rem;">Completado</span>

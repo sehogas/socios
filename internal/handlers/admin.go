@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sehogas/socios/db/sqlc"
 	"github.com/sehogas/socios/internal/auth"
@@ -25,13 +26,14 @@ func NewAdminHandler(queries *sqlc.Queries, db *sql.DB) *AdminHandler {
 }
 
 type DashboardStats struct {
-	TotalIngresos         float64
-	TotalEgresos          float64
-	BalanceNeto           float64
-	SociosActivos         int
-	SolicitudesPendientes int
-	CajaReciente          []sqlc.TransaccionesCaja
-	ArchivosBackup        []string
+	TotalIngresos            float64
+	TotalEgresos             float64
+	BalanceNeto              float64
+	SociosActivos            int
+	SolicitudesPendientes    int
+	CajaReciente             []sqlc.TransaccionesCaja
+	ArchivosBackup           []string
+	ClasificacionesFaltantes []string
 }
 
 // Dashboard gestiona el punto de entrada principal tras iniciar sesión
@@ -78,14 +80,35 @@ func (h *AdminHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		// Verificar configuraciones faltantes de cuotas para el período actual
+		periodoActual := time.Now().Format("2006-01")
+		clasificacionesRequeridas := make(map[string]bool)
+		for _, s := range socios {
+			if s.Estado == "Aprobado" && s.Activo == 1 {
+				clasificacionesRequeridas[s.Clasificacion] = true
+			}
+		}
+
+		var clasificacionesFaltantes []string
+		for cls := range clasificacionesRequeridas {
+			_, err := h.queries.GetCuotaValorByClasificacionAndPeriodo(r.Context(), sqlc.GetCuotaValorByClasificacionAndPeriodoParams{
+				Clasificacion:   cls,
+				VigenciaInicial: periodoActual,
+			})
+			if err != nil {
+				clasificacionesFaltantes = append(clasificacionesFaltantes, cls)
+			}
+		}
+
 		data["Stats"] = DashboardStats{
-			TotalIngresos:         ingresos,
-			TotalEgresos:          egresos,
-			BalanceNeto:           ingresos - egresos,
-			SociosActivos:         activos,
-			SolicitudesPendientes: pendientes,
-			CajaReciente:          movimientos,
-			ArchivosBackup:        backupsList,
+			TotalIngresos:            ingresos,
+			TotalEgresos:             egresos,
+			BalanceNeto:              ingresos - egresos,
+			SociosActivos:            activos,
+			SolicitudesPendientes:    pendientes,
+			CajaReciente:             movimientos,
+			ArchivosBackup:           backupsList,
+			ClasificacionesFaltantes: clasificacionesFaltantes,
 		}
 
 	} else {

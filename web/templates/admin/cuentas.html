@@ -24,57 +24,178 @@
     </div>
 </div>
 
+<!-- Balance General por Categorías (Flujo de Caja) -->
+<div class="card" style="margin-bottom: 2rem;">
+    <h3 style="margin-bottom: 1.5rem; color: var(--primary); display: flex; align-items: center; gap: 0.5rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Balance General por Categorías (Flujo de Caja)
+    </h3>
+    <div class="grid" style="gap: 2rem;">
+        <div>
+            <h4 style="color: var(--success); border-bottom: 2px solid var(--success); padding-bottom: 0.5rem; margin-bottom: 1rem;">Ingresos</h4>
+            <div class="table-responsive" style="margin-bottom: 1rem;">
+                <table style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Categoría</th>
+                            <th style="text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{ range .IngresosCategorias }}
+                        <tr>
+                            <td><strong>{{ .Categoria }}</strong></td>
+                            <td style="text-align: right; color: var(--success); font-weight: bold;">${{ printf "%.2f" .Total }}</td>
+                        </tr>
+                        {{ else }}
+                        <tr>
+                            <td colspan="2" style="text-align: center; color: var(--text-muted); padding: 0.75rem;">No hay ingresos registrados.</td>
+                        </tr>
+                        {{ end }}
+                        <tr style="border-top: 2px solid var(--border); font-weight: bold; background-color: #f0fdf4;">
+                            <td>TOTAL INGRESOS</td>
+                            <td style="text-align: right; color: var(--success);">${{ printf "%.2f" .TotalIngresos }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div>
+            <h4 style="color: var(--danger); border-bottom: 2px solid var(--danger); padding-bottom: 0.5rem; margin-bottom: 1rem;">Egresos</h4>
+            <div class="table-responsive" style="margin-bottom: 1rem;">
+                <table style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Categoría</th>
+                            <th style="text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{ range .EgresosCategorias }}
+                        <tr>
+                            <td><strong>{{ .Categoria }}</strong></td>
+                            <td style="text-align: right; color: var(--danger); font-weight: bold;">${{ printf "%.2f" .Total }}</td>
+                        </tr>
+                        {{ else }}
+                        <tr>
+                            <td colspan="2" style="text-align: center; color: var(--text-muted); padding: 0.75rem;">No hay egresos registrados.</td>
+                        </tr>
+                        {{ end }}
+                        <tr style="border-top: 2px solid var(--border); font-weight: bold; background-color: #fef2f2;">
+                            <td>TOTAL EGRESOS</td>
+                            <td style="text-align: right; color: var(--danger);">${{ printf "%.2f" .TotalEgresos }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div style="margin-top: 1.5rem; padding: 1rem; border-radius: 0.375rem; background: #f8fafc; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 1.2rem; font-weight: bold; box-shadow: var(--shadow);">
+        <span>Resultado Neto del Club:</span>
+        <span style="color: {{ if ge .SuperavitDeficit 0.0 }}var(--success){{ else }}var(--danger){{ end }};">
+            ${{ printf "%.2f" .SuperavitDeficit }}
+        </span>
+    </div>
+</div>
+
 <div class="grid" style="grid-template-columns: 1fr 2fr;">
-    <!-- Registrar Movimiento General (Servicios, buffet, etc.) -->
-    <div class="card">
-        <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Registrar Movimiento de Caja</h3>
-        <form action="/admin/cuentas/nueva-transaccion" method="POST">
-            <div class="form-group">
-                <label for="tipo">Tipo de Movimiento *</label>
-                <select name="tipo" id="tipo" class="form-control" required onchange="updateCategorias(this.value)">
-                    <option value="EGRESO">EGRESO (Pago de servicios, sueldos, compras, etc.)</option>
-                    <option value="INGRESO">INGRESO (Alquiler de salón, buffet, donaciones, etc.)</option>
-                </select>
-            </div>
+    <!-- Formularios de Carga / Transferencia -->
+    <div>
+        <!-- Registrar Movimiento General (Servicios, buffet, etc.) -->
+        <div class="card" id="registrar-movimiento">
+            <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Registrar Movimiento de Caja</h3>
+            <form action="/admin/cuentas/nueva-transaccion" method="POST">
+                <div class="form-group">
+                    <label for="tipo">Tipo de Movimiento *</label>
+                    <select name="tipo" id="tipo" class="form-control" required onchange="updateCategorias(this.value)">
+                        <option value="EGRESO">EGRESO (Pago de servicios, sueldos, compras, etc.)</option>
+                        <option value="INGRESO">INGRESO (Alquiler de salón, buffet, donaciones, etc.)</option>
+                    </select>
+                </div>
 
-            <div class="form-group">
-                <label for="cuenta">Cuenta Afectada *</label>
-                <select name="cuenta" id="cuenta" class="form-control" required>
-                    <option value="Efectivo">Caja Efectivo</option>
-                    <option value="Banco">Cuenta Bancaria (Transferencia)</option>
-                    <option value="MercadoPago">Mercado Pago</option>
-                </select>
-            </div>
+                <div class="form-group">
+                    <label for="cuenta">Cuenta Afectada *</label>
+                    <select name="cuenta" id="cuenta" class="form-control" required>
+                        <option value="Efectivo">Caja Efectivo</option>
+                        <option value="Banco">Cuenta Bancaria (Transferencia)</option>
+                        <option value="MercadoPago">Mercado Pago</option>
+                    </select>
+                </div>
 
-            <div class="form-group">
-                <label for="categoria">Categoría *</label>
-                <select name="categoria" id="categoria" class="form-control" required>
-                    <!-- Egresos por defecto -->
-                    <option value="Servicios">Pago de Servicios (Luz, gas, etc.)</option>
-                    <option value="Sueldos">Sueldos y Honorarios</option>
-                    <option value="Mantenimiento">Mantenimiento y Reparaciones</option>
-                    <option value="Compras">Compras y Suministros</option>
-                    <option value="Otros Egresos">Otros Egresos</option>
-                </select>
-            </div>
+                <div class="form-group">
+                    <label for="categoria">Categoría *</label>
+                    <select name="categoria" id="categoria" class="form-control" required>
+                        <!-- Egresos por defecto -->
+                        <option value="Servicios">Pago de Servicios (Luz, gas, etc.)</option>
+                        <option value="Sueldos">Sueldos y Honorarios</option>
+                        <option value="Mantenimiento">Mantenimiento y Reparaciones</option>
+                        <option value="Compras">Compras y Suministros</option>
+                        <option value="Otros Egresos">Otros Egresos</option>
+                    </select>
+                </div>
 
-            <div class="form-group">
-                <label for="monto">Monto ($) *</label>
-                <input type="number" step="0.01" name="monto" id="monto" class="form-control" required min="0.01">
-            </div>
+                <div class="form-group">
+                    <label for="monto">Monto ($) *</label>
+                    <input type="number" step="0.01" name="monto" id="monto" class="form-control" required min="0.01">
+                </div>
 
-            <div class="form-group">
-                <label for="fecha">Fecha *</label>
-                <input type="date" name="fecha" id="fecha" class="form-control" required value="{{ .FechaHoy }}">
-            </div>
+                <div class="form-group">
+                    <label for="fecha">Fecha *</label>
+                    <input type="date" name="fecha" id="fecha" class="form-control" required value="{{ .FechaHoy }}">
+                </div>
 
-            <div class="form-group">
-                <label for="descripcion">Descripción / Notas</label>
-                <input type="text" name="descripcion" id="descripcion" class="form-control" placeholder="Ej: Factura de Gas Jun 2026, Alquiler de quincho por evento">
-            </div>
+                <div class="form-group">
+                    <label for="descripcion">Descripción / Notas</label>
+                    <input type="text" name="descripcion" id="descripcion" class="form-control" placeholder="Ej: Factura de Gas Jun 2026, Alquiler de quincho por evento">
+                </div>
 
-            <button type="submit" class="btn btn-primary" style="width: 100%;">Cargar a Caja</button>
-        </form>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Cargar a Caja</button>
+            </form>
+        </div>
+
+        <!-- Transferencia entre Cuentas Propias -->
+        <div class="card" style="margin-top: 1.5rem;">
+            <h3 style="margin-bottom: 1.5rem; color: var(--primary); display: flex; align-items: center; gap: 0.35rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"/><path d="M17 12H7"/><path d="m12 7-5 5 5 5"/></svg>
+                Transferencia entre Cuentas
+            </h3>
+            <form action="/admin/cuentas/transferir" method="POST" data-confirm="¿Confirmas realizar esta transferencia interna?">
+                <div class="form-group">
+                    <label for="desde">Cuenta Origen (Desde) *</label>
+                    <select name="desde" id="desde" class="form-control" required>
+                        <option value="Efectivo">Caja Efectivo</option>
+                        <option value="Banco">Cuenta Bancaria (Transferencia)</option>
+                        <option value="MercadoPago">Mercado Pago</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="hacia">Cuenta Destino (Hacia) *</label>
+                    <select name="hacia" id="hacia" class="form-control" required>
+                        <option value="Banco" selected>Cuenta Bancaria (Transferencia)</option>
+                        <option value="Efectivo">Caja Efectivo</option>
+                        <option value="MercadoPago">Mercado Pago</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="monto_transf">Monto ($) *</label>
+                    <input type="number" step="0.01" name="monto" id="monto_transf" class="form-control" required min="0.01">
+                </div>
+
+                <div class="form-group">
+                    <label for="fecha_transf">Fecha *</label>
+                    <input type="date" name="fecha" id="fecha_transf" class="form-control" required value="{{ .FechaHoy }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="desc_transf">Detalle / Nota Opcional</label>
+                    <input type="text" name="descripcion" id="desc_transf" class="form-control" placeholder="Ej: Depósito de recaudación, Fondos para MP">
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Realizar Transferencia</button>
+            </form>
+        </div>
     </div>
 
     <!-- Historial del Libro Diario (Caja General) -->

@@ -42,9 +42,9 @@
                         <td>
                             <div style="display: flex; gap: 0.5rem;">
                                 <!-- Cambiar Rol -->
-                                <form action="/admin/usuarios/cambiar-rol?id={{ .ID }}" method="POST" style="display: inline;">
+                                <form action="/admin/usuarios/cambiar-rol?id={{ .ID }}" method="POST" style="display: inline;" data-confirm="¿Cambiar el rol de este usuario?">
                                     <input type="hidden" name="rol" value="{{ if eq .Rol "admin" }}user{{ else }}admin{{ end }}">
-                                    <button type="submit" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" onclick="return confirm('¿Cambiar el rol de este usuario?');">
+                                    <button type="submit" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
                                         Hacer {{ if eq .Rol "admin" }}Usuario{{ else }}Admin{{ end }}
                                     </button>
                                 </form>

@@ -457,28 +457,18 @@ func (h *SociosHandler) PayQuotaFromCtaCte(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Si el saldo es menor al monto pendiente de la cuota, no se puede pagar
-	if saldo < cuota.MontoPendiente {
-		http.Redirect(w, r, fmt.Sprintf("/admin/socios/detalle?id=%d&error=El socio no tiene suficiente saldo a favor en su Cuenta Corriente (Saldo: $%.2f, Necesita: $%.2f)", socioID, saldo, cuota.MontoPendiente), http.StatusSeeOther)
+	// El saldo disponible para pagar esta cuota es el saldo neto del socio más el monto del débito de esta cuota
+	// (ya que el débito de esta cuota ya fue cargado a la cuenta corriente al generarse).
+	saldoDisponible := saldo + cuota.MontoPendiente
+
+	// Si el saldo disponible es menor al monto pendiente de la cuota, no se puede pagar
+	if saldoDisponible < cuota.MontoPendiente {
+		http.Redirect(w, r, fmt.Sprintf("/admin/socios/detalle?id=%d&error=El socio no tiene suficiente saldo a favor en su Cuenta Corriente (Saldo disponible: $%.2f, Necesita: $%.2f)", socioID, saldoDisponible, cuota.MontoPendiente), http.StatusSeeOther)
 		return
 	}
 
-	montoAPagar := cuota.MontoPendiente
-
-	// Crear transacción de Débito (consumo de crédito) en la Cta Cte
-	_, err = qtx.CreateTransaccionCtaCte(r.Context(), sqlc.CreateTransaccionCtaCteParams{
-		SocioID:     socioID,
-		Tipo:        "DEBITO",
-		Monto:       montoAPagar,
-		Fecha:       time.Now().Format("2006-06-02"),
-		Descripcion: sql.NullString{String: fmt.Sprintf("Consumo saldo para pagar cuota periodo %s", cuota.Periodo), Valid: true},
-	})
-	if err != nil {
-		http.Redirect(w, r, fmt.Sprintf("/admin/socios/detalle?id=%d&error=Error al registrar debito en cta cte: %s", socioID, err.Error()), http.StatusSeeOther)
-		return
-	}
-
-	// Actualizar la cuota a Paga y pendiente = 0
+	// Actualizar la cuota a Paga y pendiente = 0 (no creamos otra transacción de DEBITO ya que
+	// la cuota ya registró su débito de cargo al ser generada, evitando duplicar la deuda).
 	err = qtx.UpdateCuotaGeneradaMontoPendiente(r.Context(), sqlc.UpdateCuotaGeneradaMontoPendienteParams{
 		MontoPendiente: 0,
 		Estado:         "Paga",

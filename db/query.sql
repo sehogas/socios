@@ -188,7 +188,7 @@ FROM transacciones_cta_cte
 WHERE socio_id = ?;
 
 
--- Caja / Tesorería Queries
+-- Caja / Tesoreria Queries
 -- name: CreateTransaccionCaja :one
 INSERT INTO transacciones_caja (tipo, cuenta, monto, fecha, categoria, descripcion)
 VALUES (?, ?, ?, ?, ?, ?)
@@ -209,3 +209,9 @@ SELECT CAST(COALESCE(SUM(monto), 0.0) AS REAL) FROM transacciones_caja WHERE tip
 SELECT CAST(COALESCE(SUM(CASE WHEN tipo = 'INGRESO' THEN monto ELSE -monto END), 0.0) AS REAL)
 FROM transacciones_caja
 WHERE cuenta = ?;
+
+-- name: GetCajaSummaryByCategory :many
+SELECT tipo, categoria, CAST(SUM(monto) AS REAL) as total
+FROM transacciones_caja
+GROUP BY tipo, categoria
+ORDER BY tipo ASC, total DESC;

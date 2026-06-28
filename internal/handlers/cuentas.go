@@ -38,15 +38,37 @@ func (h *CuentasHandler) CuentasGeneral(w http.ResponseWriter, r *http.Request) 
 	// Obtener valores de cuota históricos
 	valoresCuota, _ := h.queries.ListCuotasValores(r.Context())
 
+	// Obtener resumen por categorías para el Balance Financiero
+	var ingresosCats []sqlc.GetCajaSummaryByCategoryRow
+	var egresosCats []sqlc.GetCajaSummaryByCategoryRow
+	var totalIngresos float64
+	var totalEgresos float64
+
+	summary, _ := h.queries.GetCajaSummaryByCategory(r.Context())
+	for _, row := range summary {
+		if row.Tipo == "INGRESO" {
+			ingresosCats = append(ingresosCats, row)
+			totalIngresos += row.Total
+		} else if row.Tipo == "EGRESO" {
+			egresosCats = append(egresosCats, row)
+			totalEgresos += row.Total
+		}
+	}
+
 	data := map[string]interface{}{
-		"SaldoEfectivo": saldoEfectivo,
-		"SaldoBanco":    saldoBanco,
-		"SaldoMP":       saldoMP,
-		"TotalGeneral":  totalGeneral,
-		"Movimientos":   movimientos,
-		"FechaHoy":      time.Now().Format("2006-01-02"),
-		"VigenciaHoy":   time.Now().Format("2006-01"),
-		"ValoresCuota":  valoresCuota,
+		"SaldoEfectivo":      saldoEfectivo,
+		"SaldoBanco":         saldoBanco,
+		"SaldoMP":            saldoMP,
+		"TotalGeneral":       totalGeneral,
+		"Movimientos":        movimientos,
+		"FechaHoy":           time.Now().Format("2006-01-02"),
+		"VigenciaHoy":        time.Now().Format("2006-01"),
+		"ValoresCuota":       valoresCuota,
+		"IngresosCategorias": ingresosCats,
+		"EgresosCategorias":  egresosCats,
+		"TotalIngresos":      totalIngresos,
+		"TotalEgresos":       totalEgresos,
+		"SuperavitDeficit":   totalIngresos - totalEgresos,
 	}
 	RenderTemplate(w, r, "admin/cuentas.html", data)
 }
@@ -101,6 +123,27 @@ func (h *CuentasHandler) GenerateMonthlyQuotas(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		http.Redirect(w, r, "/dashboard?error=Error al obtener listado de socios", http.StatusSeeOther)
 		return
+	}
+
+	// Identificar las clasificaciones de socios activos y aprobados
+	clasificacionesRequeridas := make(map[string]bool)
+	for _, socio := range socios {
+		if socio.Estado == "Aprobado" && socio.Activo != 0 {
+			clasificacionesRequeridas[socio.Clasificacion] = true
+		}
+	}
+
+	// Verificar que todas las clasificaciones requeridas tengan valor de cuota configurado
+	for cls := range clasificacionesRequeridas {
+		_, err := h.queries.GetCuotaValorByClasificacionAndPeriodo(r.Context(), sqlc.GetCuotaValorByClasificacionAndPeriodoParams{
+			Clasificacion:   cls,
+			VigenciaInicial: periodo,
+		})
+		if err != nil {
+			msg := fmt.Sprintf("No se pueden generar las cuotas. Falta configurar el valor de la cuota para la clasificación '%s' para el período %s o anterior.", cls, periodo)
+			http.Redirect(w, r, "/dashboard?error="+msg, http.StatusSeeOther)
+			return
+		}
 	}
 
 	tx, err := h.db.BeginTx(r.Context(), nil)
@@ -229,4 +272,95 @@ func (h *CuentasHandler) UpdateCuotaValor(w http.ResponseWriter, r *http.Request
 	}
 
 	http.Redirect(w, r, "/admin/cuentas?success=Valor de cuota social guardado exitosamente", http.StatusSeeOther)
+}
+
+// TransferBetweenAccounts realiza una transferencia de dinero entre cuentas de la institución (Efectivo, Banco, MercadoPago)
+func (h *CuentasHandler) TransferBetweenAccounts(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Metodo no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	desde := r.FormValue("desde")
+	hacia := r.FormValue("hacia")
+	montoStr := r.FormValue("monto")
+	fecha := r.FormValue("fecha")
+	descripcion := r.FormValue("descripcion")
+
+	monto, err := strconv.ParseFloat(montoStr, 64)
+	if err != nil || monto <= 0 {
+		http.Redirect(w, r, "/admin/cuentas?error=Monto de transferencia invalido", http.StatusSeeOther)
+		return
+	}
+
+	if desde == hacia {
+		http.Redirect(w, r, "/admin/cuentas?error=La cuenta de origen y destino deben ser distintas", http.StatusSeeOther)
+		return
+	}
+
+	// Validar que las cuentas sean válidas
+	validAccounts := map[string]bool{"Efectivo": true, "Banco": true, "MercadoPago": true}
+	if !validAccounts[desde] || !validAccounts[hacia] {
+		http.Redirect(w, r, "/admin/cuentas?error=Cuentas de transferencia invalidas", http.StatusSeeOther)
+		return
+	}
+
+	// Iniciar transacción de base de datos
+	tx, err := h.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		http.Redirect(w, r, "/admin/cuentas?error=Error de base de datos al iniciar transferencia", http.StatusSeeOther)
+		return
+	}
+	defer tx.Rollback()
+
+	qtx := h.queries.WithTx(tx)
+
+	// Validar que haya saldo suficiente en la cuenta de origen
+	saldoOrigen, err := qtx.GetCajaBalanceByCuenta(r.Context(), desde)
+	if err != nil {
+		http.Redirect(w, r, "/admin/cuentas?error=Error al verificar saldo de origen", http.StatusSeeOther)
+		return
+	}
+
+	if saldoOrigen < monto {
+		http.Redirect(w, r, fmt.Sprintf("/admin/cuentas?error=Saldo insuficiente en la cuenta de origen '%s' (Disponible: $%.2f, Requerido: $%.2f)", desde, saldoOrigen, monto), http.StatusSeeOther)
+		return
+	}
+
+	descStr := fmt.Sprintf("Transferencia interna de %s a %s", desde, hacia)
+	if descripcion != "" {
+		descStr = descStr + " - " + descripcion
+	}
+
+	// 1. Registrar el EGRESO de la cuenta de origen
+	_, err = qtx.CreateTransaccionCaja(r.Context(), sqlc.CreateTransaccionCajaParams{
+		Tipo:        "EGRESO",
+		Cuenta:      desde,
+		Monto:       monto,
+		Fecha:       fecha,
+		Categoria:   "Transferencia Interna",
+		Descripcion: sql.NullString{String: descStr, Valid: true},
+	})
+	if err != nil {
+		http.Redirect(w, r, "/admin/cuentas?error=Error al debitar de la cuenta de origen: "+err.Error(), http.StatusSeeOther)
+		return
+	}
+
+	// 2. Registrar el INGRESO en la cuenta de destino
+	_, err = qtx.CreateTransaccionCaja(r.Context(), sqlc.CreateTransaccionCajaParams{
+		Tipo:        "INGRESO",
+		Cuenta:      hacia,
+		Monto:       monto,
+		Fecha:       fecha,
+		Categoria:   "Transferencia Interna",
+		Descripcion: sql.NullString{String: descStr, Valid: true},
+	})
+	if err != nil {
+		http.Redirect(w, r, "/admin/cuentas?error=Error al acreditar en la cuenta de destino: "+err.Error(), http.StatusSeeOther)
+		return
+	}
+
+	tx.Commit()
+
+	http.Redirect(w, r, fmt.Sprintf("/admin/cuentas?success=Transferencia de $%.2f desde %s hacia %s realizada correctamente", monto, desde, hacia), http.StatusSeeOther)
 }

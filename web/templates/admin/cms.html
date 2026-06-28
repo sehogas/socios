@@ -48,7 +48,7 @@
                         <td>
                             <div style="display: flex; gap: 0.25rem;">
                                 <a href="/admin/paginas?edit_id={{ .ID }}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Editar</a>
-                                <form action="/admin/paginas/eliminar?id={{ .ID }}" method="POST" style="display: inline;" onsubmit="return confirm('¿Eliminar esta página?');">
+                                <form action="/admin/paginas/eliminar?id={{ .ID }}" method="POST" style="display: inline;" data-confirm="¿Deseas eliminar esta página de novedades de forma permanente?">
                                     <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Eliminar</button>
                                 </form>
                             </div>

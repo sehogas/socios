@@ -60,11 +60,11 @@
                         <a href="/admin/socios/editar?id={{ .ID }}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; background-color: #cbd5e1;">Editar</a>
                         
                         {{ if eq .Estado "Pendiente" }}
-                            <a href="/admin/socios/aprobar?id={{ .ID }}" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" onclick="return confirm('¿Confirmas la aprobación del socio? Se le asignará un número automáticamente.');">Aprobar</a>
-                            <a href="/admin/socios/rechazar?id={{ .ID }}" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" onclick="return confirm('¿Confirmas el rechazo de la solicitud?');">Rechazar</a>
+                            <a href="/admin/socios/aprobar?id={{ .ID }}" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" data-confirm="¿Confirmas la aprobación del socio? Se le asignará un número automáticamente.">Aprobar</a>
+                            <a href="/admin/socios/rechazar?id={{ .ID }}" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" data-confirm="¿Confirmas el rechazo de la solicitud?">Rechazar</a>
                         {{ else }}
                             {{ if eq .Activo 1 }}
-                                <a href="/admin/socios/toggle-activo?id={{ .ID }}&activo=0" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" onclick="return confirm('¿Inhabilitar el acceso de este socio?');">Inhabilitar</a>
+                                <a href="/admin/socios/toggle-activo?id={{ .ID }}&activo=0" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" data-confirm="¿Inhabilitar el acceso de este socio?">Inhabilitar</a>
                             {{ else }}
                                 <a href="/admin/socios/toggle-activo?id={{ .ID }}&activo=1" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Habilitar</a>
                             {{ end }}

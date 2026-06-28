@@ -249,7 +249,7 @@ func (q *Queries) CreateToken(ctx context.Context, arg CreateTokenParams) (Token
 const createTransaccionCaja = `-- name: CreateTransaccionCaja :one
 INSERT INTO transacciones_caja (tipo, cuenta, monto, fecha, categoria, descripcion)
 VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, tipo, cuenta, monto, fecha, categoria, descripcion, fecha_creacio
+RETURNING id, tipo, cuenta, monto, fecha, categoria, descripcion, fecha_creacion
 `
 
 type CreateTransaccionCajaParams struct {
@@ -261,7 +261,7 @@ type CreateTransaccionCajaParams struct {
 	Descripcion sql.NullString
 }
 
-// Caja / Tesorería Queries
+// Caja / Tesoreria Queries
 func (q *Queries) CreateTransaccionCaja(ctx context.Context, arg CreateTransaccionCajaParams) (TransaccionesCaja, error) {
 	row := q.db.QueryRowContext(ctx, createTransaccionCaja,
 		arg.Tipo,
@@ -392,11 +392,9 @@ func (q *Queries) DeleteTokensByUsuarioAndTipo(ctx context.Context, arg DeleteTo
 }
 
 const getCajaBalanceByCuenta = `-- name: GetCajaBalanceByCuenta :one
-;
-
 SELECT CAST(COALESCE(SUM(CASE WHEN tipo = 'INGRESO' THEN monto ELSE -monto END), 0.0) AS REAL)
 FROM transacciones_caja
-WHERE cuenta =
+WHERE cuenta = ?
 `
 
 func (q *Queries) GetCajaBalanceByCuenta(ctx context.Context, cuenta string) (float64, error) {
@@ -404,6 +402,42 @@ func (q *Queries) GetCajaBalanceByCuenta(ctx context.Context, cuenta string) (fl
 	var column_1 float64
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const getCajaSummaryByCategory = `-- name: GetCajaSummaryByCategory :many
+SELECT tipo, categoria, CAST(SUM(monto) AS REAL) as total
+FROM transacciones_caja
+GROUP BY tipo, categoria
+ORDER BY tipo ASC, total DESC
+`
+
+type GetCajaSummaryByCategoryRow struct {
+	Tipo      string
+	Categoria string
+	Total     float64
+}
+
+func (q *Queries) GetCajaSummaryByCategory(ctx context.Context) ([]GetCajaSummaryByCategoryRow, error) {
+	rows, err := q.db.QueryContext(ctx, getCajaSummaryByCategory)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetCajaSummaryByCategoryRow
+	for rows.Next() {
+		var i GetCajaSummaryByCategoryRow
+		if err := rows.Scan(&i.Tipo, &i.Categoria, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getConfig = `-- name: GetConfig :one
@@ -670,9 +704,7 @@ func (q *Queries) GetTokenByValueAndTipo(ctx context.Context, arg GetTokenByValu
 }
 
 const getTotalEgresosCaja = `-- name: GetTotalEgresosCaja :one
-;
-
-SELECT CAST(COALESCE(SUM(monto), 0.0) AS REAL) FROM transacciones_caja WHERE tipo = 'EGRESO
+SELECT CAST(COALESCE(SUM(monto), 0.0) AS REAL) FROM transacciones_caja WHERE tipo = 'EGRESO'
 `
 
 func (q *Queries) GetTotalEgresosCaja(ctx context.Context) (float64, error) {
@@ -683,9 +715,7 @@ func (q *Queries) GetTotalEgresosCaja(ctx context.Context) (float64, error) {
 }
 
 const getTotalIngresosCaja = `-- name: GetTotalIngresosCaja :one
-;
-
-SELECT CAST(COALESCE(SUM(monto), 0.0) AS REAL) FROM transacciones_caja WHERE tipo = 'INGRESO
+SELECT CAST(COALESCE(SUM(monto), 0.0) AS REAL) FROM transacciones_caja WHERE tipo = 'INGRESO'
 `
 
 func (q *Queries) GetTotalIngresosCaja(ctx context.Context) (float64, error) {
@@ -915,11 +945,9 @@ func (q *Queries) ListSocios(ctx context.Context) ([]Socio, error) {
 }
 
 const listTransaccionesCaja = `-- name: ListTransaccionesCaja :many
-;
-
 SELECT id, tipo, cuenta, monto, fecha, categoria, descripcion, fecha_creacion
 FROM transacciones_caja
-ORDER BY fecha DESC, id DESC LIMIT 100000
+ORDER BY fecha DESC, id DESC LIMIT 1000000
 `
 
 func (q *Queries) ListTransaccionesCaja(ctx context.Context) ([]TransaccionesCaja, error) {

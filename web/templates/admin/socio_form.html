@@ -32,8 +32,8 @@
             <div class="form-group">
                 <label for="tipo_documento">Tipo Documento *</label>
                 <select name="tipo_documento" id="tipo_documento" class="form-control" required>
-                    <option value="" disabled {{ if or (not .Socio) (not .Socio.TipoDocumento.Valid) (eq .Socio.TipoDocumento.String "") }}selected{{ end }}>-- Seleccione --</option>
-                    {{ $val := "" }}
+                    <option value="" disabled>-- Seleccione --</option>
+                    {{ $val := "DNI" }}
                     {{ if and .Socio .Socio.TipoDocumento.Valid }}
                         {{ $val = .Socio.TipoDocumento.String }}
                     {{ end }}

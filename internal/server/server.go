@@ -106,6 +106,7 @@ func NewServer(db *sql.DB, version string) http.Handler {
 	mux.Handle("POST /admin/cuentas/nueva-transaccion", adminOnly(cuentasH.CreateCajaTransaction))
 	mux.Handle("POST /admin/cuotas/generar", adminOnly(cuentasH.GenerateMonthlyQuotas))
 	mux.Handle("POST /admin/cuotas/valores", adminOnly(cuentasH.UpdateCuotaValor))
+	mux.Handle("POST /admin/cuentas/transferir", adminOnly(cuentasH.TransferBetweenAccounts))
 
 	// Rutas de Administración de Usuarios del Sistema
 	mux.Handle("GET /admin/usuarios", adminOnly(adminH.ListUsers))
